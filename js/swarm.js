@@ -2,9 +2,12 @@
  * IRAI hero swarm — "Swarms of societies of swarms."
  * WebGL2 GPGPU particle swarm, cursor-driven fluid, HD ASCII phosphor post-process.
  * Classic script. Requires three.js r150 (global THREE). Exposes window.IraiSwarm:
- *   IraiSwarm.create(canvas, { rho = 0.25, agents = 1000, reducedMotion, focus = [0.5, 0.5] }) -> controller | null
- *   controller.setRho(0..0.95), setAgents(10|100|1000), setFocus(x, y), pause(), resume(), destroy()
+ *   IraiSwarm.create(canvas, { rho = 0.25, agents = 1000, reducedMotion, focus = [0.5, 0.5], radius = 0.42 })
+ *     -> controller | null
+ *   controller.setRho(0..0.95), setAgents(10|100|1000), setFocus(x, y[, radius]), pause(), resume(), destroy()
  *   focus: fractions of the canvas CSS box (from top-left) where the global centroid appears.
+ *   radius: fraction of the canvas CSS height the swarm's ~95th-percentile extent fits within at every rho
+ *     (low rho fills it, monoculture clumps to about half); density fades softly past it.
  */
 (function () {
   'use strict';
@@ -318,7 +321,7 @@
       'uniform sampler2D uCells, uMarks, uAtlas, uBloom, uMean;',
       'uniform mat4 uViewProj;',
       'uniform vec2 uCellPx, uScreen, uGrid, uAtlasGrid, uTruth;',
-      'uniform float uRampN, uTime, uGlitch, uBloomAmt, uExposure, uRingR, uPR, uAgentGlyph;',
+      'uniform float uRampN, uTime, uGlitch, uBloomAmt, uExposure, uRingR, uPR, uAgentGlyph, uFadeR;',
       'uniform int uLabelT[8], uLabelC[8];',
       'uniform vec3 uAmber, uHot, uLav, uCer, uBg, uHoney;',
       'float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }',
@@ -337,10 +340,13 @@
       '  src = clamp(src, ivec2(0), ivec2(uGrid) - 1);',
       '  vec4 C = texelFetch(uCells, src, 0);',
       '  float lum = mix(dot(C.rgb, vec3(0.3, 0.5, 0.2)), C.a, 0.15);',
+      // soft density falloff toward the framing radius around the global centroid
+      '  float fade = 1.0 - smoothstep(0.85, 1.15, length((vec2(cell) + 0.5) * uCellPx - uTruth) / uFadeR);',
+      '  lum *= fade;',
       '  float L = 1.0 - exp(-lum * uExposure);',
       '  int g = 0;',
       // text ramp up to L=0.92; block shades (L>0.95) only where the whole neighbourhood (bloom) is dense too
-      '  float nb = dot(texture(uBloom, (vec2(src) + 0.5) * uCellPx / uScreen).rgb, vec3(0.3, 0.5, 0.2));',
+      '  float nb = fade * dot(texture(uBloom, (vec2(src) + 0.5) * uCellPx / uScreen).rgb, vec3(0.3, 0.5, 0.2));',
       '  float Ln = 1.0 - exp(-nb * uExposure * 1.5);',
       '  float textN = uRampN - ' + BLOCKS.length + '.0;',
       '  if (L > 0.03) {',
@@ -362,7 +368,7 @@
       // --- markers (cell-space overlays rendered as glyphs)
       '  vec2 cc = (vec2(cell) + 0.5) * uCellPx;',
       // agents: diamonds in sparse cells for small crowds; a 1000-agent crowd lights its cells honey instead
-      '  if (texelFetch(uMarks, cell, 0).r > 0.0) {',
+      '  if (fade > 0.3 && texelFetch(uMarks, cell, 0).r > 0.0) {',
       '    if (uAgentGlyph > 0.5 && L < 0.55) { g = ' + g.agent + '; col = uHoney * 1.3; }',
       '    else { g = max(g, 2); col = mix(uHoney, uHot, 0.45) * 1.35; }',
       '  }',
@@ -409,7 +415,7 @@
       '    vec2 gx = vec2(1.0 / (uCellPx.x * uAtlasGrid.x), 0.0), gy = vec2(0.0, 1.0 / (uCellPx.y * uAtlasGrid.y));',
       '    m = textureGrad(uAtlas, auv, gx, gy).r;',
       '  }',
-      '  vec3 bl = texture(uBloom, fc / uScreen).rgb;',
+      '  vec3 bl = texture(uBloom, fc / uScreen).rgb * (1.0 - smoothstep(0.8, 1.2, length(fc - uTruth) / uFadeR));',
       '  float bll = dot(bl, vec3(0.3, 0.5, 0.2));',
       '  bl = bl / (1.0 + bl);',
       '  vec3 outc = mix(bl, bll / (1.0 + bll) * uAmber, 0.5) * uBloomAmt + col * m;',
@@ -549,8 +555,8 @@
     var SIM_RES = 256, DYE_RES = 512;
     var PRESSURE_ITERS = coarse ? 8 : 14;
     var CELL_W = 6, CELL_H = 9;          // CSS px per ASCII cell (scaled by DPR)
-    var FOV = 40;
-    var SWARM_HALF_X = 3.0, SWARM_HALF_Y = 2.3; // measured screen-plane half extents of the low-rho swarm
+    var FOV = 40, TAN_H = Math.tan(FOV * Math.PI / 360);
+    var EXTENT_GAIN = 0.8;               // calibrates the CPU extent estimate to the rendered 95th percentile
 
     var disposables = [];
     function track(o) { disposables.push(o); return o; }
@@ -643,6 +649,9 @@
       return [v[0] * c + cr[0] * sn + a[0] * d, v[1] * c + cr[1] * sn + a[1] * d, v[2] * c + cr[2] * sn + a[2] * d];
     }
 
+    // ~95th-percentile distance of the swarm from the global centroid (world units), from sub-swarm
+    // centroids plus their shell and turbulence spread; drives the camera framing
+    var extArr = new Float32Array(NSS), worldExt = 3.5;
     function updateWorld(dt, t, lock) {
       sharedTh += sharedW * dt;
       sharedSpin += 0.35 * dt;
@@ -673,11 +682,15 @@
           var o = (i * NSUB + j) * 4, o2 = (NSS + i * NSUB + j) * 4;
           for (k = 0; k < 3; k++) centData[o + k] = s.pos[k] + r * (b.f.u[k] * bc + b.f.w[k] * bs);
           centData[o + 3] = b.shell * (1 - 0.15 * lock) * (1 + 0.12 * Math.sin(t * 0.9 + b.br * 2.0));
+          extArr[i * NSUB + j] = Math.hypot(centData[o], centData[o + 1], centData[o + 2]) +
+            centData[o + 3] * 1.25 + 0.3 * (1 - 0.8 * lock);
           for (k = 0; k < 3; k++) centData[o2 + k] = b.axis[k] + (sharedN[k] - b.axis[k]) * lock;
           centData[o2 + 3] = b.swirl * (1 - 0.35 * lock);
         }
       }
       centTex.needsUpdate = true;
+      extArr.sort();
+      worldExt = extArr[Math.floor(0.95 * (NSS - 1))];
       // filaments: each society -> 2 nearest societies, and -> global centroid
       for (i = 0; i < NS; i++) {
         var a = socs[i].pos, best = [-1, -1], bd = [1e9, 1e9];
@@ -776,6 +789,7 @@
       uTruth: { value: new THREE.Vector2(-1e4, -1e4) }, uMean: { value: null }, uViewProj: { value: new THREE.Matrix4() },
       uRampN: { value: atlas.rampN }, uTime: { value: 0 }, uGlitch: { value: reducedMotion ? 0 : 1 },
       uBloomAmt: { value: 0.28 }, uExposure: { value: 1.5 }, uRingR: { value: 22 }, uPR: { value: 1 }, uAgentGlyph: { value: 1 },
+      uFadeR: { value: 1e5 },
       uLabelT: { value: labelCodes(atlas, LABEL_T) }, uLabelC: { value: labelCodes(atlas, LABEL_C) },
       uAmber: { value: COL.amber }, uHot: { value: COL.hot }, uLav: { value: COL.lav }, uCer: { value: COL.cer },
       uBg: { value: COL.bg }, uHoney: { value: COL.honey }
@@ -876,7 +890,6 @@
     // ------------------------------------------------------------ sizing
     var cssW = 0, cssH = 0, pr = 1, bufW = 0, bufH = 0, cols = 0, rows = 0, cellW = 6, cellH = 9;
     var sceneRT = null, cellsRT = null, marksRT = null, bloomA = null, bloomB = null;
-    var screenWorldH = 7;
     function resize() {
       var w = Math.round(canvas.clientWidth), h = Math.round(canvas.clientHeight);
       var p = Math.min(window.devicePixelRatio || 1, 2);
@@ -901,12 +914,7 @@
 
       var aspect = cssW / cssH;
       camera.aspect = aspect;
-      var tanH = Math.tan(FOV * Math.PI / 360);
-      // framing: the low-rho swarm (half extents ~SWARM_HALF_X x SWARM_HALF_Y world units) spans ~70% of the
-      // height on landscape and ~85% of the width on portrait, blended across square-ish boxes
-      var dLand = SWARM_HALF_Y / (0.70 * tanH), dPort = SWARM_HALF_X / (0.85 * tanH * aspect);
-      baseDist = dPort + (dLand - dPort) * smooth01((aspect - 0.75) / 0.5);
-      screenWorldH = 2 * baseDist * tanH;
+      var tanH = TAN_H;
       applyFocus();
       var projScale = sh * 0.5 / tanH;
       partMat.uniforms.uPointScale.value = (coarse ? 0.024 : 0.0125) * projScale;
@@ -948,10 +956,13 @@
     // ------------------------------------------------------------ simulation step
     var rhoT = clampRho(opts.rho !== undefined ? +opts.rho : 0.25), rhoS = rhoT;
     var agentsT = clampAgents(opts.agents !== undefined ? +opts.agents : 1000), logN = Math.log(agentsT);
-    var simTime = 0, baseDist = 10, lockNow = lockOf(rhoS);
+    var simTime = 0, lockNow = lockOf(rhoS), screenWorldH = 7;
     var tmpV = new THREE.Vector3(), viewProj = new THREE.Matrix4();
     var gaze = new THREE.Vector2();
     var focusT = clampFocus(opts.focus), focusS = focusT.slice();
+    var radiusT = clampRadius(opts.radius), radiusS = radiusT, extS = worldExt;
+
+    function clampRadius(r) { return isFinite(r) && r !== null ? Math.min(1, Math.max(0.05, +r)) : 0.42; }
 
     function clampFocus(f) {
       var x = f && isFinite(f[0]) ? +f[0] : 0.5, y = f && isFinite(f[1]) ? +f[1] : 0.5;
@@ -976,8 +987,15 @@
         focusS[0] += (focusT[0] - focusS[0]) * fa; focusS[1] += (focusT[1] - focusS[1]) * fa;
         applyFocus();
       }
-      // dolly in as societies collapse so a monoculture still fills the frame boldly
-      var dist = baseDist * (1 - 0.3 * lockNow), k = dist / 8;
+      var ra = instant ? 1 : 1 - Math.exp(-dt * 2.5);
+      radiusS += (radiusT - radiusS) * ra;
+      extS += (worldExt - extS) * (instant ? 1 : 1 - Math.exp(-dt * 1.5));
+      // framing: the swarm's ~95th-percentile extent fills `radius` of the CSS height at low rho and
+      // about half of it in monoculture, so the rho contrast stays readable inside a fixed window
+      var target = radiusS * (1 - 0.5 * lockNow);
+      var dist = Math.max(extS * EXTENT_GAIN / (2 * target * TAN_H), extS + 2.5), k = dist / 8;
+      screenWorldH = 2 * dist * TAN_H;
+      asciiUniforms.uFadeR.value = radiusS * cssH * pr;
       camera.position.set(gaze.x * 1.5 * k, (0.45 + gaze.y * 0.9) * k, dist);
       camera.lookAt(0, 0, 0);
       camera.updateMatrixWorld();
@@ -1183,8 +1201,9 @@
         agentsT = clampAgents(+n);
         if (!shouldRun() && !destroyed) { logN = Math.log(agentsT); renderStill(); }
       },
-      setFocus: function (x, y) {
+      setFocus: function (x, y, radius) {
         focusT = clampFocus([x, y]);
+        if (radius !== undefined) radiusT = clampRadius(radius);
         if (!shouldRun() && !destroyed) renderStill();
       },
       pause: function () { userPaused = true; sync(); },

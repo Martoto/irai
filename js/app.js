@@ -129,7 +129,6 @@ function route(){
   firstRoute=false;
   document.body.dataset.view=view;
   onScroll();
-  simVisibility();
   duskVisibility();
   ceilMaybe();
   observeLabels();
@@ -193,12 +192,6 @@ applyFocus();
 if(window.ResizeObserver){const ro=new ResizeObserver(applyFocus);ro.observe(heroEl);ro.observe(swarmWin);}
 else window.addEventListener('resize',applyFocus);
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(applyFocus);
-function simVisibility(){
-  /* reduced motion: swarm.js shows one settled frame, and resume() would cancel that, so leave it alone */
-  if(!swarm||reduce.matches)return;
-  const should=currentView==='home'&&!document.hidden&&!sim.paused;
-  if(should)swarm.resume();else swarm.pause();
-}
 function neff(){return sim.N/(1+(sim.N-1)*sim.rho);}
 function updateReadout(){
   const ne=neff(),r=Math.max(1,Math.round(ne));
@@ -214,14 +207,15 @@ function updateReadout(){
 }
 $('#rho').addEventListener('input',e=>{sim.rho=parseFloat(e.target.value);updateReadout();if(swarm)swarm.setRho(sim.rho);});
 $$('.seg button').forEach(b=>b.addEventListener('click',()=>{sim.N=parseInt(b.dataset.n,10);$$('.seg button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));updateReadout();if(swarm)swarm.setAgents(sim.N);}));
+/* Pause/Play is the only caller of pause()/resume(): swarm.js already stops itself when the hero is
+   offscreen, the tab is hidden or the home view is [hidden], and under reduced motion it shows one
+   settled frame until the user presses Play. */
 pauseBtn.addEventListener('click',()=>{
   if(!swarm)return;
-  if(reduce.matches){swarm.setAgents(sim.N);return;}
   sim.paused=!sim.paused;pauseBtn.setAttribute('aria-pressed',String(sim.paused));pauseBtn.textContent=sim.paused?'Resume':'Pause';
-  simVisibility();
+  if(sim.paused)swarm.pause();else swarm.resume();
 });
-if(reduce.matches)pauseBtn.textContent='Ask a new question';
-document.addEventListener('visibilitychange',simVisibility);
+if(reduce.matches){sim.paused=true;pauseBtn.setAttribute('aria-pressed','true');pauseBtn.textContent='Play';}
 updateReadout();
 
 /* ---- HUD clock (Brasília time) ---- */
