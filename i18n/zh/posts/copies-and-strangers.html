@@ -1,7 +1,7 @@
-<p>Take five judges who are each right 80% of the time and let the majority decide. If they are copies of one another, they are right and wrong on the same questions, so the majority is right 80% of the time. You paid for five and got one.</p>
-<p>Now take five judges who are each right only 70% of the time, and whose mistakes are unrelated. The majority is right about 84% of the time. With fifteen such judges it is 95%. The weaker group wins because its errors don't line up.</p>
-<h2>What it looks like in practice</h2>
-<p>We saw this pattern in our own experiment on fraud detection (Echoes of Humanity, AMCIS 2026). The best single judge was an LLM agent. The best crowd was the human one. The groups with the noisiest individuals gained most from averaging, and one model's crowd scored below its own best agent. That is what you'd expect when averaging has random noise to remove and a shared bias it can't touch.</p>
-<h2>Temperature is noise</h2>
-<p>The usual way to make copies of a model disagree is to raise the sampling temperature. Temperature perturbs the output around an unchanged belief. You get more spread and no second point of view. Renze and Guven tested nine models across temperatures from 0 to 1 and found no significant effect on accuracy.</p>
-<p>People differ in what they know and how they reason, so their mistakes fall on different questions. Agents built on one model have none of that. Our next studies try to give it to them.</p>
+<p>找五个评判者，每人正确率80%，让多数来决定。如果他们是彼此的副本，就会在同样的问题上对、在同样的问题上错，于是多数决的正确率也是80%。你付了五个的钱，只得到一个。</p>
+<p>现在找五个评判者，每人正确率只有70%，而且他们的错误互不相关。多数决的正确率约为84%。有十五个这样的评判者时，正确率达到95%。较弱的一组获胜，因为他们的错误不会重叠。</p>
+<h2>实际中是什么样子</h2>
+<p>我们在自己的欺诈检测实验中看到了这一模式（Echoes of Humanity，AMCIS 2026）。最好的单个评判者是一个 LLM 智能体。最好的群体是人类群体。个体噪声最大的组从平均中获益最多，而某个模型的群体得分甚至低于它自己最好的智能体。当平均能去除随机噪声、却碰不到共同偏差时，就会出现这种结果。</p>
+<h2>温度只是噪声</h2>
+<p>让同一模型的多个副本产生分歧，常用的办法是提高采样温度。温度是在一个不变的信念周围扰动输出。你得到的是更大的离散度，而不是第二种观点。Renze 和 Guven 测试了九个模型在0到1之间的各种温度，没有发现对准确率的显著影响。</p>
+<p>人与人在知识和推理方式上各不相同，所以他们的错误落在不同的问题上。基于同一个模型构建的智能体完全没有这种差异。我们接下来的研究，就是尝试把这种差异赋予它们。</p>

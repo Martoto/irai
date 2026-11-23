@@ -1,8 +1,8 @@
-<p>Surowiecki names four conditions for crowd wisdom: diversity of opinion, independence, decentralization, and a way to aggregate. Most agent swarms, our own first experiment included, meet only the last. Every agent sees the same input and brings the same pretraining, so nothing is decentralized.</p>
-<p>Decentralization is the interesting one. In a human crowd each member holds a private signal. LLM agents have none unless someone gives it to them. So the thesis of the second paper is that LLM crowd wisdom has to be built. It comes from structuring what each agent knows, how it reasons and how the swarm combines views.</p>
-<h2>Intersecting knowledge</h2>
-<p>The flagship experiment takes a fraud case and splits its evidence into pieces: headers, body text, links, sender history, transaction metadata. Each agent gets a subset. We then vary the overlap between agents' subsets from fully disjoint to identical.</p>
-<p>Our hypothesis is an inverted U. With too little overlap no agent can judge alone or cross-check another. With too much, the agents are redundant, which is where most swarms sit today. The best overlap is a design parameter nobody has estimated.</p>
-<p>Li, Naito and Shirado showed at ICML 2026 that multi-agent LLMs reproduce a classic human failure: they converge early on shared evidence and leave distributed facts unexplored. We build on that. What we add is a continuous overlap sweep, a comparison between agents that deliberate and agents that only vote, and a matched human group.</p>
-<h2>Local knowledge</h2>
-<p>The second study uses frauds that are specific to Brazil, such as the Pix scam, the fake boleto and the “new phone number” message on WhatsApp, mixed with generic international phishing. We expect Portuguese-native and English-dominant models to fail on different items, and a mixed crowd to beat either alone.</p>
+<p>Surowiecki は群衆の知恵の条件として、意見の多様性、独立性、分散性、そして集約の方法の4つを挙げています。ほとんどのエージェントのスウォームは、私たち自身の最初の実験も含めて、最後の1つしか満たしていません。どのエージェントも同じ入力を見て、同じ事前学習を持っているので、何も分散していないのです。</p>
+<p>興味深いのは分散性です。人間の群衆では、メンバーそれぞれが私的なシグナルを持っています。LLM エージェントは、誰かが与えない限り何も持っていません。そこで2本目の論文の主張は、LLM の群衆の知恵は作らなければならない、というものです。それは、各エージェントが何を知り、どう推論し、スウォームが意見をどう組み合わせるかを構造化することから生まれます。</p>
+<h2>交差する知識</h2>
+<p>中心となる実験では、詐欺事例の証拠をヘッダー、本文、リンク、送信者の履歴、取引メタデータといった断片に分けます。各エージェントはその一部を受け取ります。そのうえで、エージェント間の重なりを、完全に別々から完全に同一まで変化させます。</p>
+<p>私たちの仮説は逆U字型です。重なりが少なすぎると、どのエージェントも単独では判断できず、ほかのエージェントを確認することもできません。多すぎるとエージェントは冗長になり、今日のほとんどのスウォームはここにいます。最適な重なりは、まだ誰も推定していない設計パラメータです。</p>
+<p>Li、Naito、Shirado は ICML 2026 で、マルチエージェント LLM が人間の古典的な失敗を再現することを示しました。共有された証拠に早々と収束し、分散した事実を掘り下げないままにするのです。私たちはこれを土台にします。私たちが加えるのは、重なりの連続的なスイープ、熟議するエージェントと投票だけするエージェントの比較、そしてマッチングした人間のグループです。</p>
+<h2>地域の知識</h2>
+<p>2つ目の研究では、Pix 詐欺、偽の boleto、WhatsApp の「電話番号が変わりました」メッセージといったブラジル特有の詐欺を、一般的な国際フィッシングと混ぜて使います。ポルトガル語ネイティブのモデルと英語中心のモデルは異なる項目で失敗し、混成の群衆はどちらか単独よりも勝ると予想しています。</p>

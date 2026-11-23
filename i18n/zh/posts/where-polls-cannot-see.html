@@ -1,9 +1,9 @@
-<p>A persona model that tries to beat national polls on the headline number will lose, and winning would prove little. National polling in Brazil is dense. A model with no campaign information can only repeat what its training data says about Brazilians, and a model fed the news mostly hands the polls back.</p>
-<p>So Model Society aims where polls are blind. Brazil has 5,570 municipalities and around 470,000 voting sections. The electoral authority publishes the electorate profile for every section and the result of every voting machine. That is thousands of out-of-sample checks per election.</p>
-<h2>What the model is allowed to say</h2>
-<p>We keep three things apart. The population frame comes from TSE registration data and the IBGE census. Turnout comes from past behaviour. The language models supply one quantity only: the probability that a voter of a given demographic type chooses a given option. Post-stratification then carries those probabilities down to any level where the population mix is known. Most silicon-sampling studies blend these parts and can't tell afterwards which one failed.</p>
-<h2>Baselines fixed in advance</h2>
-<p>The test is whether the society predicts differential swing better than uniform swing, which is a strong baseline because municipal results barely move between elections. At the finest scale we add a non-LLM benchmark built from section composition and past cell-level vote rates. If the models can't beat it, we'll say so.</p>
-<p>Every level also has a noise floor. A voting section of about 300 people varies by roughly 3.3 percentage points from individual idiosyncrasy alone. We score against that floor.</p>
-<h2>Rules</h2>
-<ul><li>Forecasts are hashed and timestamped before the outcome exists.</li><li>Nothing is released before polls close.</li><li>Outputs are labelled as synthetic simulations.</li><li>Model lean and refusals are reported as bias in the instrument.</li><li>A null result gets written up.</li></ul>
+<p>一个试图在头条数字上击败全国民调的人设模型注定会输，而且即便赢了也证明不了什么。巴西的全国民调很密集。一个没有竞选信息的模型，只能复述训练数据里关于巴西人的说法；一个喂了新闻的模型，基本上只是把民调还给你。</p>
+<p>所以 Model Society 瞄准的是民调看不到的地方。巴西有5570个市镇和约47万个投票区。选举当局公布每个投票区的选民构成和每台投票机的结果。每次选举都意味着数千次样本外检验。</p>
+<h2>模型被允许说什么</h2>
+<p>我们把三样东西分开。人口框架来自 TSE 的选民登记数据和 IBGE 的人口普查。投票率来自过往行为。语言模型只提供一个量：某一人口类型的选民选择某一选项的概率。然后，事后分层把这些概率推到任何已知人口构成的层级。大多数硅基抽样研究把这几部分混在一起，事后无法判断是哪一部分出了错。</p>
+<h2>预先固定的基线</h2>
+<p>检验的标准是：这个社会对差异性摆动的预测是否优于均匀摆动。均匀摆动是一个很强的基线，因为各市镇的结果在两次选举之间几乎不变。在最细的尺度上，我们还加入一个不使用 LLM 的基准，它根据投票区构成和过往各单元的得票率构建。如果模型赢不了它，我们会如实说明。</p>
+<p>每个层级也都有一个噪声下限。一个约300人的投票区，仅个体特质一项就会带来约3.3个百分点的波动。我们以这个下限为基准打分。</p>
+<h2>规则</h2>
+<ul><li>预测在结果出现之前就做哈希并加时间戳。</li><li>投票结束前不发布任何内容。</li><li>输出标明为合成模拟。</li><li>模型倾向和拒答作为仪器偏差报告。</li><li>零结果也会写成文章发表。</li></ul>

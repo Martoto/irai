@@ -1,11 +1,11 @@
-<p>The idea behind every agent swarm is more than two centuries old. Condorcet showed that a jury of mediocre voters becomes reliable as it grows, as long as each voter errs independently. Agent swarms rarely meet that condition.</p>
-<p>When errors are correlated, a crowd of N judges is worth fewer than N. If {rho} is the average correlation between two members' errors, the crowd carries the information of</p>
+<p>あらゆるエージェントのスウォームの根底にある考え方は、200年以上前からあります。コンドルセは、凡庸な投票者からなる陪審でも、各投票者が独立に間違える限り、人数が増えるにつれて信頼できるものになることを示しました。エージェントのスウォームがこの条件を満たすことはめったにありません。</p>
+<p>誤差が相関していると、N人の判定者からなる群衆の価値はNより小さくなります。{rho}を2人のメンバーの誤差の平均相関とすると、群衆が持つ情報は</p>
 <p class="formula">{neff} = N / (1 + (N − 1){rho})</p>
-<p>independent judges. Put numbers in. With 1,000 agents and {rho} = 0.25, {neff} is 4. At 0.5 it's 2. Even at a correlation of 0.05, which sounds negligible, 1,000 agents are worth about 20.</p>
-<h2>The ceiling</h2>
-<p>As N grows, {neff} approaches 1/{rho} and stops. At {rho} = 0.25, no number of agents gets you past four. The only way up is to lower {rho}.</p>
-<h2>Where this shows up</h2>
-<p>In our own first experiment the agent crowd was four times the size of the human one and still lost to it (Echoes of Humanity, AMCIS 2026). The agents came from a handful of models and differed mostly by sampling temperature, so there were far fewer independent judges than the head count suggested.</p>
-<p>Others see the same thing. Lefort and colleagues applied the Condorcet theorem to LLM ensembles and found only marginal gains. A 2026 preprint by Kohli, not yet refereed, reports nine-model judge panels behaving like roughly two independent votes.</p>
-<h2>Why it's the first thing we measure</h2>
-<p>{neff} is cheap to compute from outputs you already have, and it changes decisions. If your panel of twelve judges is worth two, the next dollar shouldn't go to judge thirteen.</p>
+<p>人分の独立した判定者に相当します。数字を入れてみましょう。エージェント1,000体で{rho} = 0.25なら、{neff}は4です。0.5なら2です。無視できそうに聞こえる0.05の相関でも、1,000体のエージェントは約20人分にしかなりません。</p>
+<h2>上限</h2>
+<p>Nが大きくなると、{neff}は1/{rho}に近づいて止まります。{rho} = 0.25なら、エージェントをいくら増やしても4人分を超えません。上げる方法は{rho}を下げることだけです。</p>
+<h2>どこに現れるか</h2>
+<p>私たち自身の最初の実験では、エージェントの群衆は人間の群衆の4倍の規模でしたが、それでも人間に負けました（Echoes of Humanity、AMCIS 2026）。エージェントは少数のモデルから作られ、違いはほとんどサンプリング温度だけだったので、独立した判定者は頭数よりずっと少なかったのです。</p>
+<p>ほかの研究者も同じものを見ています。Lefort らは LLM のアンサンブルにコンドルセの定理を適用し、わずかな改善しか見いだせませんでした。Kohli による2026年のまだ査読を経ていないプレプリントは、9つのモデルからなる審査員パネルが、独立した票およそ2つ分のようにふるまうと報告しています。</p>
+<h2>最初にこれを測る理由</h2>
+<p>{neff}は手元にある出力から安く計算でき、しかも意思決定を変えます。12人の審査員パネルが2人分の価値しかないなら、次の1ドルを13人目の審査員に使うべきではありません。</p>

@@ -1,8 +1,8 @@
-<p>Surowiecki names four conditions for crowd wisdom: diversity of opinion, independence, decentralization, and a way to aggregate. Most agent swarms, our own first experiment included, meet only the last. Every agent sees the same input and brings the same pretraining, so nothing is decentralized.</p>
-<p>Decentralization is the interesting one. In a human crowd each member holds a private signal. LLM agents have none unless someone gives it to them. So the thesis of the second paper is that LLM crowd wisdom has to be built. It comes from structuring what each agent knows, how it reasons and how the swarm combines views.</p>
-<h2>Intersecting knowledge</h2>
-<p>The flagship experiment takes a fraud case and splits its evidence into pieces: headers, body text, links, sender history, transaction metadata. Each agent gets a subset. We then vary the overlap between agents' subsets from fully disjoint to identical.</p>
-<p>Our hypothesis is an inverted U. With too little overlap no agent can judge alone or cross-check another. With too much, the agents are redundant, which is where most swarms sit today. The best overlap is a design parameter nobody has estimated.</p>
-<p>Li, Naito and Shirado showed at ICML 2026 that multi-agent LLMs reproduce a classic human failure: they converge early on shared evidence and leave distributed facts unexplored. We build on that. What we add is a continuous overlap sweep, a comparison between agents that deliberate and agents that only vote, and a matched human group.</p>
-<h2>Local knowledge</h2>
-<p>The second study uses frauds that are specific to Brazil, such as the Pix scam, the fake boleto and the “new phone number” message on WhatsApp, mixed with generic international phishing. We expect Portuguese-native and English-dominant models to fail on different items, and a mixed crowd to beat either alone.</p>
+<p>Surowiecki 提出了群体智慧的四个条件：意见多样、相互独立、分散化，以及一种汇总方式。大多数智能体蜂群，包括我们自己的第一个实验，只满足最后一条。每个智能体看到同样的输入，带着同样的预训练，所以没有任何东西是分散的。</p>
+<p>分散化是最有意思的一条。在人类群体中，每个成员都握有私人信号。LLM 智能体没有，除非有人给它们。所以第二篇论文的论点是：LLM 的群体智慧必须靠构建。它来自对三件事的设计：每个智能体知道什么，它如何推理，以及蜂群如何合并各方观点。</p>
+<h2>交叉的知识</h2>
+<p>核心实验取一个欺诈案例，把证据拆成若干部分：邮件头、正文、链接、发件人历史、交易元数据。每个智能体拿到其中一个子集。然后我们改变智能体子集之间的重叠度，从完全不相交到完全相同。</p>
+<p>我们的假设是一条倒U形曲线。重叠太少，没有哪个智能体能独立判断，也无法核对别人。重叠太多，智能体彼此冗余，而这正是如今大多数蜂群所处的位置。最佳重叠度是一个还没有人估计过的设计参数。</p>
+<p>Li、Naito 和 Shirado 在 ICML 2026 上表明，多智能体 LLM 会重现人类的一种经典失误：过早地在共享证据上达成一致，而忽略分散在各处的事实。我们在此基础上推进。我们新增的是：对重叠度的连续扫描，对会商议的智能体和只投票的智能体的比较，以及一个匹配的人类对照组。</p>
+<h2>本地知识</h2>
+<p>第二项研究使用巴西特有的欺诈手段，例如 Pix 诈骗、假 boleto 账单，以及 WhatsApp 上的“我换新号码了”消息，并混入通用的国际网络钓鱼。我们预计以葡萄牙语为母语的模型和以英语为主的模型会在不同题目上出错，而混合群体会胜过任何单独一方。</p>

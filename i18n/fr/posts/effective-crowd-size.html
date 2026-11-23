@@ -1,11 +1,11 @@
-<p>The idea behind every agent swarm is more than two centuries old. Condorcet showed that a jury of mediocre voters becomes reliable as it grows, as long as each voter errs independently. Agent swarms rarely meet that condition.</p>
-<p>When errors are correlated, a crowd of N judges is worth fewer than N. If {rho} is the average correlation between two members' errors, the crowd carries the information of</p>
+<p>L’idée derrière chaque essaim d’agents a plus de deux siècles. Condorcet a montré qu’un jury de votants médiocres devient fiable à mesure qu’il grandit, à condition que chaque votant se trompe de façon indépendante. Les essaims d’agents réunissent rarement cette condition.</p>
+<p>Quand les erreurs sont corrélées, une foule de N juges vaut moins que N. Si {rho} est la corrélation moyenne entre les erreurs de deux membres, la foule porte l’information de</p>
 <p class="formula">{neff} = N / (1 + (N − 1){rho})</p>
-<p>independent judges. Put numbers in. With 1,000 agents and {rho} = 0.25, {neff} is 4. At 0.5 it's 2. Even at a correlation of 0.05, which sounds negligible, 1,000 agents are worth about 20.</p>
-<h2>The ceiling</h2>
-<p>As N grows, {neff} approaches 1/{rho} and stops. At {rho} = 0.25, no number of agents gets you past four. The only way up is to lower {rho}.</p>
-<h2>Where this shows up</h2>
-<p>In our own first experiment the agent crowd was four times the size of the human one and still lost to it (Echoes of Humanity, AMCIS 2026). The agents came from a handful of models and differed mostly by sampling temperature, so there were far fewer independent judges than the head count suggested.</p>
-<p>Others see the same thing. Lefort and colleagues applied the Condorcet theorem to LLM ensembles and found only marginal gains. A 2026 preprint by Kohli, not yet refereed, reports nine-model judge panels behaving like roughly two independent votes.</p>
-<h2>Why it's the first thing we measure</h2>
-<p>{neff} is cheap to compute from outputs you already have, and it changes decisions. If your panel of twelve judges is worth two, the next dollar shouldn't go to judge thirteen.</p>
+<p>juges indépendants. Mettons des chiffres. Avec 1 000 agents et {rho} = 0,25, {neff} vaut 4. À 0,5, il vaut 2. Même avec une corrélation de 0,05, qui semble négligeable, 1 000 agents valent environ 20.</p>
+<h2>Le plafond</h2>
+<p>À mesure que N augmente, {neff} se rapproche de 1/{rho} et s’arrête. Avec {rho} = 0,25, aucun nombre d’agents ne dépasse quatre. Le seul moyen de monter est de baisser {rho}.</p>
+<h2>Où cela apparaît</h2>
+<p>Dans notre première expérience, la foule d’agents comptait quatre fois plus de membres que la foule humaine et a tout de même perdu face à elle (Echoes of Humanity, AMCIS 2026). Les agents provenaient d’une poignée de modèles et ne se distinguaient surtout que par la température d’échantillonnage&#8239;: il y avait donc beaucoup moins de juges indépendants que le nombre de participants ne le suggérait.</p>
+<p>D’autres observent la même chose. Lefort et ses collègues ont appliqué le théorème de Condorcet à des ensembles de LLM et n’ont trouvé que des gains marginaux. Un préprint de 2026 de Kohli, pas encore évalué par les pairs, rapporte que des jurys de neuf modèles se comportent comme environ deux votes indépendants.</p>
+<h2>Pourquoi c’est la première chose que nous mesurons</h2>
+<p>{neff} se calcule facilement à partir des sorties que vous avez déjà, et il change les décisions. Si votre jury de douze juges vaut deux, le prochain euro ne doit pas aller au juge treize.</p>

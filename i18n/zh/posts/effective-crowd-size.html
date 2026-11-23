@@ -1,11 +1,11 @@
-<p>The idea behind every agent swarm is more than two centuries old. Condorcet showed that a jury of mediocre voters becomes reliable as it grows, as long as each voter errs independently. Agent swarms rarely meet that condition.</p>
-<p>When errors are correlated, a crowd of N judges is worth fewer than N. If {rho} is the average correlation between two members' errors, the crowd carries the information of</p>
+<p>每一个智能体蜂群背后的想法，已有两百多年历史。孔多塞证明，一个由平庸投票者组成的陪审团，只要每个投票者的错误彼此独立，就会随着人数增加而变得可靠。智能体蜂群很少满足这个条件。</p>
+<p>当误差相关时，一个由N个评判者组成的群体，其价值低于N。如果{rho}是两个成员误差之间的平均相关性，那么这个群体携带的信息相当于</p>
 <p class="formula">{neff} = N / (1 + (N − 1){rho})</p>
-<p>independent judges. Put numbers in. With 1,000 agents and {rho} = 0.25, {neff} is 4. At 0.5 it's 2. Even at a correlation of 0.05, which sounds negligible, 1,000 agents are worth about 20.</p>
-<h2>The ceiling</h2>
-<p>As N grows, {neff} approaches 1/{rho} and stops. At {rho} = 0.25, no number of agents gets you past four. The only way up is to lower {rho}.</p>
-<h2>Where this shows up</h2>
-<p>In our own first experiment the agent crowd was four times the size of the human one and still lost to it (Echoes of Humanity, AMCIS 2026). The agents came from a handful of models and differed mostly by sampling temperature, so there were far fewer independent judges than the head count suggested.</p>
-<p>Others see the same thing. Lefort and colleagues applied the Condorcet theorem to LLM ensembles and found only marginal gains. A 2026 preprint by Kohli, not yet refereed, reports nine-model judge panels behaving like roughly two independent votes.</p>
-<h2>Why it's the first thing we measure</h2>
-<p>{neff} is cheap to compute from outputs you already have, and it changes decisions. If your panel of twelve judges is worth two, the next dollar shouldn't go to judge thirteen.</p>
+<p>个独立评判者。代入数字看看。1000个智能体、{rho} = 0.25时，{neff}为4。相关性为0.5时，则为2。即使相关性只有0.05，听起来可以忽略不计，1000个智能体也只相当于约20个。</p>
+<h2>上限</h2>
+<p>随着N增大，{neff}趋近1/{rho}，然后停住。{rho} = 0.25时，无论多少智能体都无法超过四个。唯一的提升途径是降低{rho}。</p>
+<h2>它出现在哪里</h2>
+<p>在我们自己的第一个实验中，智能体群体的规模是人类群体的四倍，却仍然输给了人类（Echoes of Humanity，AMCIS 2026）。这些智能体来自少数几个模型，主要差别只是采样温度，所以独立评判者的数量远少于人头数。</p>
+<p>其他人也看到了同样的现象。Lefort 等人将孔多塞定理应用于 LLM 集成，只发现了微小的增益。Kohli 在2026年发表的一篇尚未经同行评审的预印本报告称，由九个模型组成的评审团，表现大约相当于两张独立的票。</p>
+<h2>为什么这是我们最先测量的东西</h2>
+<p>{neff}可以用你手头已有的输出低成本算出，而且它会改变决策。如果你的十二人评审团只相当于两个人，下一美元就不该花在第十三个评审身上。</p>

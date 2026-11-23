@@ -1,7 +1,7 @@
-<p>Take five judges who are each right 80% of the time and let the majority decide. If they are copies of one another, they are right and wrong on the same questions, so the majority is right 80% of the time. You paid for five and got one.</p>
-<p>Now take five judges who are each right only 70% of the time, and whose mistakes are unrelated. The majority is right about 84% of the time. With fifteen such judges it is 95%. The weaker group wins because its errors don't line up.</p>
-<h2>What it looks like in practice</h2>
-<p>We saw this pattern in our own experiment on fraud detection (Echoes of Humanity, AMCIS 2026). The best single judge was an LLM agent. The best crowd was the human one. The groups with the noisiest individuals gained most from averaging, and one model's crowd scored below its own best agent. That is what you'd expect when averaging has random noise to remove and a shared bias it can't touch.</p>
-<h2>Temperature is noise</h2>
-<p>The usual way to make copies of a model disagree is to raise the sampling temperature. Temperature perturbs the output around an unchanged belief. You get more spread and no second point of view. Renze and Guven tested nine models across temperatures from 0 to 1 and found no significant effect on accuracy.</p>
-<p>People differ in what they know and how they reason, so their mistakes fall on different questions. Agents built on one model have none of that. Our next studies try to give it to them.</p>
+<p>それぞれ80%の確率で正しい判定者を5人用意し、多数決で決めるとします。5人が互いのコピーなら、同じ問題で正解し、同じ問題で間違えるので、多数決の正答率も80%です。5人分払って、1人分しか得られません。</p>
+<p>今度は、それぞれ70%しか正しくないものの、間違いが互いに無関係な判定者を5人用意します。多数決の正答率は約84%になります。そうした判定者が15人いれば95%です。弱いほうのグループが勝つのは、間違いが重ならないからです。</p>
+<h2>実際にはどう見えるか</h2>
+<p>私たちは自分たちの詐欺検出の実験でこのパターンを確認しました（Echoes of Humanity、AMCIS 2026）。最も優れた個人の判定者は LLM エージェントでした。最も優れた群衆は人間の群衆でした。個人のノイズが最も大きいグループほど平均化の恩恵を受け、あるモデルの群衆は、そのモデルの最も優れたエージェントを下回りました。平均化で取り除けるランダムなノイズがあり、手の届かない共通のバイアスがあるとき、まさにこうなります。</p>
+<h2>温度はノイズ</h2>
+<p>モデルのコピー同士の意見を割れさせるふつうの方法は、サンプリング温度を上げることです。温度は、変わらない信念のまわりで出力を揺らします。ばらつきは増えても、2つ目の視点は生まれません。Renze と Guven は9つのモデルを温度0から1まで試し、精度に有意な影響は見られないことを示しました。</p>
+<p>人は知っていることも考え方も違うので、間違える問題も違います。一つのモデルの上に作ったエージェントには、そうした違いがまったくありません。私たちの次の研究は、それをエージェントに与えようとするものです。</p>
