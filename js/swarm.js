@@ -123,6 +123,16 @@
   ].join('\n');
 
   // --- particle simulation
+  // particle role from its hash: x = 1 for the diffuse field orbiting the centroid, y = position along
+  // its society's trail (0 = in the head clump, 1 = oldest point of the trail)
+  var ROLE = [
+    'vec2 role(float w){',
+    '  float fld = step(fract(w * 7.31), 0.12);',
+    '  float h = fract(w * 29.7);',
+    '  return vec2(fld, h < 0.6 ? 0.0 : pow((h - 0.6) / 0.4, 1.2) * (1.0 - fld));',
+    '}'
+  ].join('\n');
+
   var SIM_COMMON = [
     // divergence-free turbulence: curl of a sum of plane-wave vector potentials
     'vec3 curlWave(vec3 q, vec3 a, vec3 b, vec3 c, vec3 ph){',
@@ -137,29 +147,52 @@
     '}'
   ].join('\n');
 
-  var VEL_FRAG = FRAG_HEAD + SIM_COMMON + '\n' + [
-    'uniform sampler2D uPos, uVel, uInfo, uCent, uFluidVel, uFluidDye;',
-    'uniform float uDt, uTime, uK, uDrag, uTurb, uLock, uNoiseFreq, uFluidForce;',
-    'uniform int uNSub;',
-    'uniform mat4 uViewProj; uniform vec3 uCamRight, uCamUp;',
+  var VEL_FRAG = FRAG_HEAD + SIM_COMMON + '\n' + ROLE + '\n' + [
+    'uniform sampler2D uPos, uVel, uInfo, uCent, uHist, uFluidVel, uFluidDye;',
+    'uniform float uDt, uTime, uK, uDrag, uTurb, uLock, uNoiseFreq, uFluidForce, uOrbitV, uFieldR, uTrail, uHistA1, uHistDt;',
+    'uniform int uNSub, uHistN;',
+    'uniform mat4 uViewProj; uniform vec3 uCamRight, uCamUp, uSharedN, uPivot;',
     'void main(){',
     '  ivec2 ij = ivec2(gl_FragCoord.xy);',
     '  vec4 P = texelFetch(uPos, ij, 0), V = texelFetch(uVel, ij, 0), I = texelFetch(uInfo, ij, 0);',
-    '  int si = int(I.x) * uNSub + int(I.y);',
-    '  vec4 C = texelFetch(uCent, ivec2(si, 0), 0), A = texelFetch(uCent, ivec2(si, 1), 0);',
     '  vec3 p = P.xyz, v = V.xyz;',
-    '  vec3 rel = p - C.xyz; float dist = length(rel) + 1e-5; vec3 n = rel / dist;',
+    '  vec2 ro = role(I.w);',
     '  float breathe = 1.0 + 0.18 * sin(uTime * 0.9 + I.x * 2.1 + I.w * 6.2831);',
-    '  float r0 = C.w * (0.3 + 0.7 * pow(I.z, 0.3333)) * breathe;',
-    '  vec3 f = -n * (dist - r0) * uK;',
-    // individual swirl axis around the shared sub-swarm axis (boids-like alignment)
     '  vec3 jit = vec3(fract(I.w * 127.1), fract(I.w * 311.7), fract(I.w * 74.7)) - 0.5;',
-    '  vec3 axis = normalize(A.xyz + jit * 1.1 * (1.0 - 0.6 * uLock));',
-    '  vec3 vT = cross(axis, rel) * A.w * (0.55 + 0.9 * fract(I.w * 13.3));',
+    '  vec3 anchor = uPivot, av = vec3(0.0), axis; float r0, spin;',
+    '  if (ro.x > 0.5) {',
+    // diffuse field: thin shells around the centroid with centre-weighted radii, circulating with the
+    // shared sense of rotation on varied inclinations; a few stragglers counter-rotate until lockstep
+    '    r0 = uFieldR * (0.02 + pow(I.z, 2.6)) * (0.92 + 0.08 * breathe);',
+    '    float sg = fract(I.w * 5.17) < 0.14 ? mix(-1.0, 1.0, uLock) : 1.0;',
+    '    axis = normalize(uSharedN * sg + jit * 1.1 * (1.0 - 0.7 * uLock) + vec3(1e-3));',
+    '    spin = uOrbitV / (r0 + 1.0);',
+    '  } else {',
+    '    int soc = int(I.x), si = soc * uNSub + int(I.y);',
+    '    vec4 C = texelFetch(uCent, ivec2(si, 0), 0), A = texelFetch(uCent, ivec2(si, 1), 0);',
+    '    anchor = C.xyz; av = texelFetch(uCent, ivec2(si, 2), 0).xyz;',
+    '    if (ro.y > 0.0) {',
+    // trail: follow the society's recent path, sub-swarm offsets narrowing toward the tail
+    '      float age = ro.y * uTrail;',
+    '      float x = min(age < uHistA1 ? age / uHistA1 : 1.0 + (age - uHistA1) / uHistDt, float(uHistN) - 1.001);',
+    '      int k = int(x);',
+    '      vec3 h0 = texelFetch(uHist, ivec2(k, soc), 0).xyz, h1 = texelFetch(uHist, ivec2(k + 1, soc), 0).xyz;',
+    '      anchor = mix(h0, h1, x - float(k)) + (C.xyz - texelFetch(uHist, ivec2(0, soc), 0).xyz) * (1.0 - 0.9 * sqrt(ro.y));',
+    '      if (k > 0) av = (h0 - h1) / uHistDt;',
+    '    }',
+    '    r0 = C.w * (0.3 + 0.7 * pow(I.z, 0.3333)) * breathe * (1.0 - 0.85 * sqrt(ro.y));',
+    // individual swirl axis around the shared sub-swarm axis (boids-like alignment)
+    '    axis = normalize(A.xyz + jit * 1.1 * (1.0 - 0.6 * uLock));',
+    '    spin = A.w * (0.55 + 0.9 * fract(I.w * 13.3));',
+    '  }',
+    '  vec3 rel = p - anchor; float dist = length(rel) + 1e-5; vec3 n = rel / dist;',
+    '  vec3 f = -n * (dist - r0) * uK;',
+    '  vec3 vT = cross(axis, rel) * spin;',
     '  float vl = length(vT); if (vl > 2.2) vT *= 2.2 / vl;',
-    '  f += (vT - v) * uDrag;',
+    // drag toward the swirl measured in the anchor's moving frame, so clumps keep their shape in orbit
+    '  f += (vT + av - v) * uDrag;',
     '  float ph = I.x * 1.731 * (1.0 - uLock) + I.y * 0.37;',
-    '  f += turbulence(p * uNoiseFreq, uTime * 0.35, ph) * uTurb;',
+    '  f += turbulence(p * uNoiseFreq, uTime * 0.35, ph) * uTurb * (1.0 - 0.8 * ro.y);',
     // cursor fluid: project to screen, push along camera plane, masked by dye density
     '  vec4 clip = uViewProj * vec4(p, 1.0);',
     '  float excite = V.w * exp(-uDt * 1.6);',
@@ -212,7 +245,7 @@
     '}'
   ].join('\n');
 
-  var PARTICLE_VERT = HEAD + [
+  var PARTICLE_VERT = HEAD + ROLE + '\n' + [
     'in float position;',
     'uniform mat4 modelViewMatrix, projectionMatrix;',
     'uniform sampler2D uPos, uVel, uInfo; uniform int uSize;',
@@ -234,10 +267,33 @@
     '    col = uLav; sz *= 1.3 + 1.2 * tw;',
     '  }',
     '  float inten = uIntensity * (0.75 + 0.2 * min(length(V.xyz), 3.0) + 2.0 * V.w + 2.5 * tw + (tw > 0.0 ? 0.6 : 0.0));',
+    '  vec2 ro = role(r);',
+    '  inten *= ro.x > 0.5 ? 1.1 : (ro.y > 0.0 ? 1.6 - 0.9 * ro.y : 1.5);',
     '  vColor = col * inten;',
     '  gl_PointSize = clamp(sz, 1.0, 10.0);',
     '}'
   ].join('\n');
+
+  // per-cell screen flow of the particles, one pixel per ASCII cell: xy = summed unit direction of trail
+  // particles, z = trail particles, a = all particles
+  var FLOW_VERT = HEAD + ROLE + '\n' + [
+    'in float position;',
+    'uniform mat4 modelViewMatrix, projectionMatrix;',
+    'uniform sampler2D uPos, uVel, uInfo; uniform int uSize; uniform vec2 uScale, uScreen;',
+    'out vec3 vColor;',
+    'void main(){',
+    '  ivec2 ij = ivec2(gl_VertexID % uSize, gl_VertexID / uSize);',
+    '  vec3 p = texelFetch(uPos, ij, 0).xyz, v = texelFetch(uVel, ij, 0).xyz;',
+    '  mat4 pm = projectionMatrix * modelViewMatrix;',
+    '  vec4 a = pm * vec4(p, 1.0), b = pm * vec4(p + v * 0.05, 1.0);',
+    '  vec2 d = (b.xy / b.w - a.xy / a.w) * uScreen;',
+    '  float s = length(d);',
+    '  vColor = vec3(d / max(s, 1e-6), 1.0) * smoothstep(0.2, 1.0, s) * step(0.05, role(texelFetch(uInfo, ij, 0).w).y);',
+    '  gl_Position = vec4(((a.xy / a.w * 0.5 + 0.5) * uScale * 2.0 - 1.0) * a.w, 0.0, a.w);',
+    '  gl_PointSize = 1.0;',
+    '}'
+  ].join('\n');
+  var FLAT_FRAG = FRAG_HEAD + 'in vec3 vColor; void main(){ O = vec4(vColor, 1.0); }';
 
   var AGENT_VERT = HEAD + [
     'in float position;',
@@ -318,7 +374,7 @@
 
   function asciiFrag(g) {
     return FRAG_HEAD + [
-      'uniform sampler2D uCells, uMarks, uAtlas, uBloom, uMean;',
+      'uniform sampler2D uCells, uMarks, uAtlas, uBloom, uMean, uFlow;',
       'uniform mat4 uViewProj;',
       'uniform vec2 uCellPx, uScreen, uGrid, uAtlasGrid, uTruth;',
       'uniform float uRampN, uTime, uGlitch, uBloomAmt, uExposure, uRingR, uPR, uAgentGlyph, uFadeR;',
@@ -339,19 +395,21 @@
       '  }',
       '  src = clamp(src, ivec2(0), ivec2(uGrid) - 1);',
       '  vec4 C = texelFetch(uCells, src, 0);',
-      '  float lum = mix(dot(C.rgb, vec3(0.3, 0.5, 0.2)), C.a, 0.15);',
+      // part peak, part mean: thin orbit streams register as glyph trails, not just filled clumps
+      '  float lum = mix(dot(C.rgb, vec3(0.3, 0.5, 0.2)), C.a, 0.3);',
       // soft density falloff toward the framing radius around the global centroid
       '  float fade = 1.0 - smoothstep(0.85, 1.15, length((vec2(cell) + 0.5) * uCellPx - uTruth) / uFadeR);',
       '  lum *= fade;',
       '  float L = 1.0 - exp(-lum * uExposure);',
       '  int g = 0;',
-      // text ramp up to L=0.92; block shades (L>0.95) only where the whole neighbourhood (bloom) is dense too
+      // text ramp from L=0.1 (sparser haze stays blank, so clumps and streams read) up to L=0.92;
+      // block shades (L>0.95) only where the whole neighbourhood (bloom) is dense too
       '  float nb = fade * dot(texture(uBloom, (vec2(src) + 0.5) * uCellPx / uScreen).rgb, vec3(0.3, 0.5, 0.2));',
-      '  float Ln = 1.0 - exp(-nb * uExposure * 1.5);',
+      '  float Ln = 1.0 - exp(-nb * uExposure);',
       '  float textN = uRampN - ' + BLOCKS.length + '.0;',
-      '  if (L > 0.03) {',
+      '  if (L > 0.1) {',
       '    float Lb = min(L, Ln);',
-      '    if (Lb < 0.95) g = 1 + int(pow((min(L, 0.92) - 0.03) / 0.89, 0.85) * (textN - 1.001));',
+      '    if (Lb < 0.95) g = 1 + int(pow((min(L, 0.92) - 0.1) / 0.82, 0.85) * (textN - 1.001));',
       '    else g = int(textN) + min(int((Lb - 0.95) / 0.012), ' + (BLOCKS.length - 1) + ');',
       '  }',
       '  float mc = max(max(C.r, C.g), C.b);',
@@ -359,11 +417,17 @@
       '  float lav = smoothstep(0.02, 0.3, hue.b - hue.r);',
       '  vec3 tint = mix(mix(hue, uAmber, 0.6), uLav * 1.15, lav);',
       '  tint = mix(tint, uHot, smoothstep(0.7, 1.0, L) * 0.55);',
-      '  vec3 col = tint * (0.45 + 0.8 * L);',
+      '  vec3 col = tint * (0.3 + 0.9 * L);',
       '  if (glitchBand) col *= vec3(0.75, 0.85, 1.25);',
       '  if (uGlitch > 0.0 && L > 0.05 && hash(vec2(cell) + tq * 1.37) < 0.0012) {',
       '    g = 1 + int(hash(vec2(cell) * 1.7 + tq) * (textN - 2.0));',
       '    col = hash(vec2(cell) - tq) < 0.5 ? uLav * 1.3 : uHot;',
+      '  }',
+      // orbit streams: text cells dominated by coherently moving trail particles draw a stroke along the flow
+      '  vec4 Fl = texelFetch(uFlow, src, 0);',
+      '  if (g > 0 && g < int(textN) && L < 0.8 && Fl.z > 2.0 && Fl.z > 0.45 * Fl.a && length(Fl.xy) > 0.85 * Fl.z) {',
+      '    float a = mod(atan(Fl.y, Fl.x), 3.14159265);',
+      '    g = a < 0.49 || a > 2.65 ? ' + g.h + ' : (a < 1.27 ? ' + g.fwd + ' : (a < 1.87 ? ' + g.v + ' : ' + g.back + '));',
       '  }',
       // --- markers (cell-space overlays rendered as glyphs)
       '  vec2 cc = (vec2(cell) + 0.5) * uCellPx;',
@@ -442,11 +506,6 @@
   function frame(n) {
     var u = norm(cross(Math.abs(n[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0], n));
     return { n: n, u: u, w: cross(n, u) };
-  }
-  function tiltedNormal(r, bias) {
-    var v = randUnit(r);
-    if (v[1] < 0) { v = [-v[0], -v[1], -v[2]]; }
-    return norm([v[0], v[1] + bias, v[2]]);
   }
   function smooth01(x) { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x); }
 
@@ -556,7 +615,11 @@
     var PRESSURE_ITERS = coarse ? 8 : 14;
     var CELL_W = 6, CELL_H = 9;          // CSS px per ASCII cell (scaled by DPR)
     var FOV = 40, TAN_H = Math.tan(FOV * Math.PI / 360);
-    var EXTENT_GAIN = 0.8;               // calibrates the CPU extent estimate to the rendered 95th percentile
+    var EXTENT_GAIN = 0.62;              // calibrates the CPU extent estimate to the rendered 95th percentile
+    var ORBIT_V = 1.6;                   // orbital speed scale (world units/s); angular speed ~ ORBIT_V / (R + 1)
+    var FIELD_R = 2.6;                   // outer shell radius of the diffuse field around the centroid
+    var TRAIL = 3.0;                     // seconds of orbit each society trails behind its head clump
+    var NH = 24, HIST_DT = TRAIL / (NH - 2); // society path history samples and their spacing (s)
 
     var disposables = [];
     function track(o) { disposables.push(o); return o; }
@@ -609,38 +672,51 @@
     }
 
     // ------------------------------------------------------------ world (CPU)
+    // Societies orbit the global centroid on tilted orbits with centre-weighted radii; most share one
+    // sense of rotation about sharedN (mostly facing the camera, so the swirl reads on screen), a few
+    // counter-rotate. Each odd society mirrors its even partner across the centroid, keeping it the mean.
     var rnd = mulberry(0x1A2A1);
     var socs = [], subs = [];
-    var sharedN = norm([0.25, 1, 0.12]), sharedF = frame(sharedN);
+    var sharedN = norm([0.2, 0.45, 1]), sharedF = frame(sharedN);
     for (var i = 0; i < NS; i++) {
       var s;
       if (i & 1) {
         var m0 = socs[i - 1];
         s = { f: m0.f, R: m0.R, w: m0.w, th: m0.th + Math.PI, off: [-m0.off[0], -m0.off[1], -m0.off[2]], br: rnd() * 6.28 };
       } else {
-        var dir = randUnit(rnd), ol = 0.75 + 0.8 * rnd();
+        var dir = randUnit(rnd), sa = rnd() * Math.PI * 2, ol = 0.35 + 0.85 * rnd(), lift = (rnd() - 0.5) * 0.5;
+        var R0 = 0.4 + 2.7 * Math.pow(rnd(), 1.4), ca = Math.cos(sa) * ol, sb = Math.sin(sa) * ol;
         s = {
-          f: frame(tiltedNormal(rnd, 0.35 + rnd() * 1.2)),
-          R: 1.25 + 1.9 * Math.pow(rnd(), 0.8),
-          w: (0.07 + 0.2 * rnd()) * (rnd() < 0.3 ? -1 : 1),
+          // inclinations spread up to ~55 degrees around the shared axis; ~12% counter-rotate
+          f: frame(norm([dir[0] + 1.25 * sharedN[0], dir[1] + 1.25 * sharedN[1], dir[2] + 1.25 * sharedN[2]])),
+          R: R0,
+          w: ORBIT_V / (R0 + 1.0) * (0.8 + 0.4 * rnd()) * (rnd() < 0.12 ? -1 : 1),
           th: rnd() * Math.PI * 2,
-          off: [dir[0] * ol, dir[1] * ol * 0.7, dir[2] * ol],
+          // monoculture slot: a disc in the shared plane, spun in lockstep
+          off: [
+            sharedF.u[0] * ca + sharedF.w[0] * sb + sharedN[0] * lift,
+            sharedF.u[1] * ca + sharedF.w[1] * sb + sharedN[1] * lift,
+            sharedF.u[2] * ca + sharedF.w[2] * sb + sharedN[2] * lift
+          ],
           br: rnd() * 6.28
         };
       }
-      s.pos = [0, 0, 0];
+      s.pos = [0, 0, 0]; s.vel = [0, 0, 0];
       socs.push(s);
       for (var j = 0; j < NSUB; j++) {
         subs.push({
-          f: frame(randUnit(rnd)), r: 0.2 + 0.24 * rnd(), w: (0.22 + 0.5 * rnd()) * (rnd() < 0.5 ? -1 : 1),
-          th: rnd() * Math.PI * 2, shell: 0.11 + 0.11 * rnd(), swirl: (0.5 + 1.1 * rnd()) * (rnd() < 0.5 ? -1 : 1),
+          f: frame(randUnit(rnd)), r: 0.26 + 0.3 * rnd(), w: (0.22 + 0.5 * rnd()) * (rnd() < 0.5 ? -1 : 1),
+          th: rnd() * Math.PI * 2, shell: 0.15 + 0.14 * rnd(), swirl: (0.5 + 1.1 * rnd()) * (rnd() < 0.5 ? -1 : 1),
           axis: randUnit(rnd), br: rnd() * 6.28
         });
       }
     }
-    var sharedW = 0.21, sharedTh = 0, sharedR = 0.95, sharedSpin = 0;
-    var centData = new Float32Array(NSS * 2 * 4);
-    var centTex = dataTex(centData, NSS, 2);
+    var sharedW = 0.3, sharedTh = 0, sharedR = 0.7, sharedSpin = 0, sharedSpinW = 0.6;
+    var pivot = [0, 0, 0];               // centre of the field: the centroid, drifting with the monoculture
+    var centData = new Float32Array(NSS * 3 * 4);
+    var centTex = dataTex(centData, NSS, 3);
+    // society path history: column 0 = now, column k >= 1 = pushed (k - 1) * HIST_DT + histAge seconds ago
+    var histData = new Float32Array(NS * NH * 4), histTex = dataTex(histData, NH, NS), histAge = 0, histFilled = false;
     var linkData = new Float32Array(NLINK * 2 * 4);
     var linkTex = dataTex(linkData, NLINK, 2);
 
@@ -650,17 +726,23 @@
     }
 
     // ~95th-percentile distance of the swarm from the global centroid (world units), from sub-swarm
-    // centroids plus their shell and turbulence spread; drives the camera framing
+    // centroids plus their shell and turbulence spread (in monoculture the vortex streams and the field
+    // around the off-centre pivot widen it); drives the camera framing
     var extArr = new Float32Array(NSS), worldExt = 3.5;
     function updateWorld(dt, t, lock) {
       sharedTh += sharedW * dt;
-      sharedSpin += 0.35 * dt;
+      sharedSpin += sharedSpinW * dt;
       var sc = [
         sharedR * (sharedF.u[0] * Math.cos(sharedTh) + sharedF.w[0] * Math.sin(sharedTh)),
         sharedR * (sharedF.u[1] * Math.cos(sharedTh) + sharedF.w[1] * Math.sin(sharedTh)),
         sharedR * (sharedF.u[2] * Math.cos(sharedTh) + sharedF.w[2] * Math.sin(sharedTh))
       ];
       var i, j, k;
+      for (k = 0; k < 3; k++) pivot[k] = sc[k] * lock;
+      histAge += dt;
+      var push = histFilled && histAge >= HIST_DT;
+      if (push) histAge = histAge - HIST_DT < HIST_DT ? histAge - HIST_DT : 0;
+      var va = 1 - Math.exp(-dt * 12);
       for (i = 0; i < NS; i++) {
         var s = socs[i];
         if (!(i & 1)) s.th += dt * (s.w + (sharedW - s.w) * lock);
@@ -673,22 +755,33 @@
           R * (s.f.u[2] * c + s.f.w[2] * sn) + s.f.n[2] * wob
         ];
         var ro = rotAxis(s.off, sharedN, sharedSpin);
-        for (k = 0; k < 3; k++) s.pos[k] = ind[k] + (sc[k] + ro[k] - ind[k]) * lock;
+        for (k = 0; k < 3; k++) {
+          var np = ind[k] + (sc[k] + ro[k] - ind[k]) * lock;
+          if (dt > 0) s.vel[k] += ((np - s.pos[k]) / dt - s.vel[k]) * va;
+          s.pos[k] = np;
+        }
+        var h = i * NH * 4;
+        if (!histFilled) for (k = 1; k < NH; k++) histData.set(s.pos, h + k * 4);
+        histData.set(s.pos, h);
+        if (push) histData.copyWithin(h + 4, h, h + (NH - 1) * 4);
         for (j = 0; j < NSUB; j++) {
           var b = subs[i * NSUB + j];
           b.th += dt * b.w * (1 - 0.5 * lock);
           var r = b.r * (1 - 0.35 * lock) * (1 + 0.15 * Math.sin(t * 0.8 + b.br));
           var bc = Math.cos(b.th), bs = Math.sin(b.th);
-          var o = (i * NSUB + j) * 4, o2 = (NSS + i * NSUB + j) * 4;
+          var o = (i * NSUB + j) * 4, o2 = (NSS + i * NSUB + j) * 4, o3 = (2 * NSS + i * NSUB + j) * 4;
           for (k = 0; k < 3; k++) centData[o + k] = s.pos[k] + r * (b.f.u[k] * bc + b.f.w[k] * bs);
           centData[o + 3] = b.shell * (1 - 0.15 * lock) * (1 + 0.12 * Math.sin(t * 0.9 + b.br * 2.0));
           extArr[i * NSUB + j] = Math.hypot(centData[o], centData[o + 1], centData[o + 2]) +
-            centData[o + 3] * 1.25 + 0.3 * (1 - 0.8 * lock);
+            centData[o + 3] * 1.25 + 0.3 + 0.45 * lock;
           for (k = 0; k < 3; k++) centData[o2 + k] = b.axis[k] + (sharedN[k] - b.axis[k]) * lock;
           centData[o2 + 3] = b.swirl * (1 - 0.35 * lock);
+          for (k = 0; k < 3; k++) centData[o3 + k] = s.vel[k];
         }
       }
+      histFilled = true;
       centTex.needsUpdate = true;
+      histTex.needsUpdate = true;
       extArr.sort();
       worldExt = extArr[Math.floor(0.95 * (NSS - 1))];
       // filaments: each society -> 2 nearest societies, and -> global centroid
@@ -758,10 +851,13 @@
       grad: mat(GRAD_FRAG, { uPressure: { value: null }, uVelocity: { value: null }, uTexel: { value: simTexel } }),
       advect: mat(ADVECT_FRAG, { uVelocity: { value: null }, uSource: { value: null }, uTexel: { value: simTexel }, uDt: { value: 0 }, uDissipation: { value: 1 } }),
       vel: mat(VEL_FRAG, {
-        uPos: { value: null }, uVel: { value: null }, uInfo: { value: infoTex }, uCent: { value: centTex },
+        uPos: { value: null }, uVel: { value: null }, uInfo: { value: infoTex }, uCent: { value: centTex }, uHist: { value: histTex },
         uFluidVel: { value: null }, uFluidDye: { value: null },
         uDt: { value: 0 }, uTime: { value: 0 }, uK: { value: 7 }, uDrag: { value: 2.6 }, uTurb: { value: 1 },
         uLock: { value: 0 }, uNoiseFreq: { value: 0.9 }, uFluidForce: { value: 0 }, uNSub: { value: NSUB },
+        uOrbitV: { value: ORBIT_V }, uFieldR: { value: FIELD_R }, uTrail: { value: TRAIL }, uHistA1: { value: 0 },
+        uHistDt: { value: HIST_DT }, uHistN: { value: NH },
+        uSharedN: { value: new THREE.Vector3().fromArray(sharedN) }, uPivot: { value: new THREE.Vector3() },
         uViewProj: { value: new THREE.Matrix4() }, uCamRight: { value: new THREE.Vector3() }, uCamUp: { value: new THREE.Vector3() }
       }),
       pos: mat(POS_FRAG, { uPos: { value: null }, uVel: { value: null }, uDt: { value: 0 } }),
@@ -783,7 +879,7 @@
     atlasTex.magFilter = THREE.LinearFilter;
     function gi(ch) { return atlas.list.indexOf(ch); }
     var asciiUniforms = {
-      uCells: { value: null }, uMarks: { value: null }, uAtlas: { value: atlasTex }, uBloom: { value: null },
+      uCells: { value: null }, uMarks: { value: null }, uAtlas: { value: atlasTex }, uBloom: { value: null }, uFlow: { value: null },
       uCellPx: { value: new THREE.Vector2() }, uScreen: { value: new THREE.Vector2() }, uGrid: { value: new THREE.Vector2() },
       uAtlasGrid: { value: new THREE.Vector2(atlas.cols, atlas.rows) },
       uTruth: { value: new THREE.Vector2(-1e4, -1e4) }, uMean: { value: null }, uViewProj: { value: new THREE.Matrix4() },
@@ -863,12 +959,23 @@
     scene.add(agentPts);
     var markUniforms = Object.assign({}, agentUniforms, { uMarks: { value: 1 } });
     var markMat = track(new THREE.RawShaderMaterial(Object.assign({
-      glslVersion: THREE.GLSL3, vertexShader: AGENT_VERT, fragmentShader: FRAG_HEAD + 'in vec3 vColor; void main(){ O = vec4(vColor, 1.0); }',
+      glslVersion: THREE.GLSL3, vertexShader: AGENT_VERT, fragmentShader: FLAT_FRAG,
       uniforms: markUniforms
     }, additive)));
     var markPts = new THREE.Points(agentGeo, markMat);
     markPts.frustumCulled = false;
     markScene.add(markPts);
+
+    var flowScene = new THREE.Scene();
+    var flowUniforms = {
+      uPos: { value: null }, uVel: { value: null }, uInfo: { value: infoTex }, uSize: { value: SIZE },
+      uScale: { value: new THREE.Vector2(1, 1) }, uScreen: { value: new THREE.Vector2(1, 1) }
+    };
+    var flowPts = new THREE.Points(particles.geometry, track(new THREE.RawShaderMaterial(Object.assign({
+      glslVersion: THREE.GLSL3, vertexShader: FLOW_VERT, fragmentShader: FLAT_FRAG, uniforms: flowUniforms
+    }, additive))));
+    flowPts.frustumCulled = false;
+    flowScene.add(flowPts);
 
     // ------------------------------------------------------------ crowd estimate (stays on the GPU)
     var meanRT = doubleRT(1, 1, FF, THREE.NearestFilter);
@@ -889,7 +996,7 @@
 
     // ------------------------------------------------------------ sizing
     var cssW = 0, cssH = 0, pr = 1, bufW = 0, bufH = 0, cols = 0, rows = 0, cellW = 6, cellH = 9;
-    var sceneRT = null, cellsRT = null, marksRT = null, bloomA = null, bloomB = null;
+    var sceneRT = null, cellsRT = null, marksRT = null, flowRT = null, bloomA = null, bloomB = null;
     function resize() {
       var w = Math.round(canvas.clientWidth), h = Math.round(canvas.clientHeight);
       var p = Math.min(window.devicePixelRatio || 1, 2);
@@ -901,13 +1008,14 @@
       bufW = Math.round(cssW * pr); bufH = Math.round(cssH * pr);
       cellW = Math.max(4, Math.round(CELL_W * pr)); cellH = Math.max(6, Math.round(CELL_H * pr));
       cols = Math.ceil(bufW / cellW); rows = Math.ceil(bufH / cellH);
-      [sceneRT, cellsRT, marksRT, bloomA, bloomB].forEach(function (r) {
+      [sceneRT, cellsRT, marksRT, flowRT, bloomA, bloomB].forEach(function (r) {
         if (r) { r.dispose(); disposables.splice(disposables.indexOf(r), 1); }
       });
       var sw = Math.min(cssW, 2048), sh = Math.max(2, Math.round(sw * cssH / cssW));
       sceneRT = rt(sw, sh, HF, THREE.LinearFilter);
       cellsRT = rt(cols, rows, HF, THREE.NearestFilter);
       marksRT = rt(cols, rows, THREE.UnsignedByteType, THREE.NearestFilter);
+      flowRT = rt(cols, rows, HF, THREE.NearestFilter);
       var bw = Math.max(2, Math.round(sw / 4)), bh = Math.max(2, Math.round(sh / 4));
       bloomA = rt(bw, bh, HF, THREE.LinearFilter);
       bloomB = rt(bw, bh, HF, THREE.LinearFilter);
@@ -922,6 +1030,8 @@
       agentUniforms.uPointScale.value = 0.035 * projScale;
       agentUniforms.uMarkScaleX.value = bufW / (cols * cellW);
       agentUniforms.uMarkScaleY.value = bufH / (rows * cellH);
+      flowUniforms.uScale.value.set(agentUniforms.uMarkScaleX.value, agentUniforms.uMarkScaleY.value);
+      flowUniforms.uScreen.value.set(bufW, bufH);
       M.cells.uniforms.uCellPx.value.set(cellW, cellH);
       M.cells.uniforms.uScreen.value.set(bufW, bufH);
       asciiUniforms.uCellPx.value.set(cellW, cellH);
@@ -1067,9 +1177,12 @@
       U.uDt.value = dt; U.uTime.value = simTime;
       U.uK.value = 7 * (0.4 + 0.6 * smooth01(simTime / 1.2));
       U.uLock.value = lock;
+      U.uFieldR.value = FIELD_R * (1 - 0.6 * lock);
+      U.uPivot.value.fromArray(pivot);
+      U.uHistA1.value = histAge;
       // monoculture packs every particle into one clump: lower exposure to keep glyph gradation
-      asciiUniforms.uExposure.value = 1.5 * (1 - 0.72 * lock);
-      U.uTurb.value = 1.5 + (0.3 - 1.5) * lock;
+      asciiUniforms.uExposure.value = 2.2 * (1 - 0.75 * lock);
+      U.uTurb.value = 0.9 + (0.3 - 0.9) * lock;
       U.uFluidForce.value = withFluid ? (screenWorldH / SIM_RES) * 2.2 : 0;
       U.uViewProj.value.copy(viewProj);
       U.uCamRight.value.setFromMatrixColumn(camera.matrixWorld, 0);
@@ -1089,6 +1202,8 @@
       agentUniforms.uPos.value = posRT.read.texture;
       agentUniforms.uTime.value = t;
       markUniforms.uPos.value = posRT.read.texture;
+      flowUniforms.uPos.value = posRT.read.texture;
+      flowUniforms.uVel.value = velRT.read.texture;
       agentGeo.setDrawRange(0, Math.round(agentsT));
       asciiUniforms.uAgentGlyph.value = agentsT <= 100 ? 1 : 0;
       tmpV.set(0, 0, 0).project(camera);
@@ -1100,6 +1215,8 @@
       renderer.render(scene, camera);
       renderer.setRenderTarget(marksRT); renderer.clear(true, false, false);
       renderer.render(markScene, camera);
+      renderer.setRenderTarget(flowRT); renderer.clear(true, false, false);
+      renderer.render(flowScene, camera);
 
       M.cells.uniforms.uScene.value = sceneRT.texture;
       pass(M.cells, cellsRT);
@@ -1116,6 +1233,7 @@
       }
       asciiUniforms.uCells.value = cellsRT.texture;
       asciiUniforms.uMarks.value = marksRT.texture;
+      asciiUniforms.uFlow.value = flowRT.texture;
       asciiUniforms.uBloom.value = bloomA.texture;
       asciiUniforms.uTime.value = t;
       pass(M.ascii, null);
