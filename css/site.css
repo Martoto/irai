@@ -153,14 +153,14 @@ input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px soli
 .hero-copy{display:contents}
 .hero-copy > *{pointer-events:auto}
 .hero-copy > .idx{grid-column:1/-1;grid-row:1;margin-bottom:22px}
-.hero h1{grid-column:1/span 8;grid-row:2;max-width:calc(55vw - max(var(--gut),(100vw - var(--wrap)) / 2 + var(--gut)))}
+.hero h1{--h1w:calc(55vw - max(var(--gut),(100vw - var(--wrap)) / 2 + var(--gut)));grid-column:1/span 8;grid-row:2;max-width:var(--h1w)}
 /* the swarm's own clear window: an empty box the 3D swarm (or the ASCII fallback) is centred on */
-.swarm-window{position:absolute;left:56%;width:24%;top:23%;height:38%;pointer-events:none}
+.swarm-window{position:absolute;left:calc(57vw - max(0px,(100vw - var(--wrap)) / 2));width:24vw;top:23%;height:38%;pointer-events:none}
 .hero p.lede{grid-column:1/span 5;grid-row:3;margin-top:26px}
 .hero .btn-row{grid-column:1/span 6;grid-row:4;margin-top:24px}
 .hero h1{font-size:inherit;line-height:1;letter-spacing:0;text-wrap:initial;mix-blend-mode:plus-lighter}
 .hero h1:focus-visible{outline-offset:8px}
-.hero .slogan{display:block;font-size:clamp(3rem,5.6vw,8rem);font-weight:900;line-height:.86;letter-spacing:-.04em;color:var(--text);text-wrap:balance}
+.hero .slogan{display:block;font-size:clamp(3rem,min(5.6vw,var(--h1w) / 8),8rem);font-weight:900;line-height:.86;letter-spacing:-.04em;color:var(--text);text-wrap:balance}
 .hero .claim{display:block;margin-top:clamp(18px,2.4vw,30px);font-size:clamp(1.15rem,2.3vw,2.1rem);font-weight:800;line-height:1.05;letter-spacing:-.01em;color:var(--text)}
 .hero .claim > span{display:inline}
 .hero .claim b{color:var(--honey);font-weight:inherit;font-variant-numeric:tabular-nums;text-shadow:0 0 18px rgba(242,182,50,.45)}

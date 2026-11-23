@@ -160,7 +160,14 @@ const heroEl=$('.hero'),swarmWin=$('#swarmWindow');
 function swarmFocus(){
   const c=heroEl.getBoundingClientRect(),w=swarmWin.getBoundingClientRect();
   if(!c.width||!c.height||!w.width||!w.height)return null;
-  return [(w.left+w.width/2-c.left)/c.width,(w.top+w.height/2-c.top)/c.height];
+  let y=w.top+w.height/2-c.top;
+  /* desktop: the window overlaps the docked panel on short screens; keep the centroid and its
+     TRUTH/CROWD markers a fifth of the hero height clear above the panel */
+  if(getComputedStyle(swarmWin).position==='absolute'){
+    const pt=$('.console').getBoundingClientRect().top-c.top;
+    y=Math.max(c.height*0.24,Math.min(y,pt-c.height*0.2));
+  }
+  return [(w.left+w.width/2-c.left)/c.width,y/c.height];
 }
 let swarm=null;
 try{swarm=(window.IraiSwarm&&typeof window.IraiSwarm.create==='function')?window.IraiSwarm.create(cv,{rho:sim.rho,agents:sim.N,reducedMotion:reduce.matches,focus:swarmFocus()||[0.68,0.42]}):null;}catch(_){swarm=null;}
