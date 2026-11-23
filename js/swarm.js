@@ -456,7 +456,7 @@
   // Truth and crowd labels as two rows of a premultiplied texture at device resolution: light text on a
   // dark plate so they stay legible over the glyphs. Returns each label's uv rect and size in device px.
   function drawLabels(cv, labels, pr) {
-    var fontPx = Math.round(11 * pr), padX = Math.round(5 * pr), padY = Math.round(3 * pr);
+    var fontPx = Math.round(12.5 * pr), padX = Math.round(6 * pr), padY = Math.round(3.5 * pr);
     var font = '500 ' + fontPx + 'px ' + LABEL_FONT;
     var ctx = cv.getContext('2d');
     var texts = [labels.truth, labels.crowd];
@@ -903,8 +903,8 @@
       asciiUniforms.uScreen.value.set(bufW, bufH);
       ovUniforms.uScreen.value.set(bufW, bufH);
       ovUniforms.uPR.value = pr;
-      ovUniforms.uArm.value = 9 * pr;
-      ovUniforms.uRingR.value = 11 * pr;
+      ovUniforms.uArm.value = 11 * pr;                // crosshair spans ~22 CSS px
+      ovUniforms.uRingR.value = 16 * pr;              // ring ~32 CSS px across
       ovUniforms.uStroke.value = 1.5 * pr;
       rasterLabels();
       M.splat.uniforms.uAspect.value = aspect;
