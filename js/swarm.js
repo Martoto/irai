@@ -578,6 +578,19 @@
     return out;
   }
 
+  // Chromium's SwiftShader context is not always reported as a performance caveat, so also
+  // match the renderer string. Software rasterisers run the hero at a few fps.
+  function isSoftwareRenderer(gl) {
+    var d = gl.getExtension('WEBGL_debug_renderer_info');
+    var r = d ? String(gl.getParameter(d.UNMASKED_RENDERER_WEBGL)) : '';
+    return /SwiftShader|llvmpipe|softpipe|Basic Render|WARP/i.test(r);
+  }
+
+  function releaseContext(gl) {
+    var lose = gl.getExtension('WEBGL_lose_context');
+    if (lose) lose.loseContext();
+  }
+
   // ---------------------------------------------------------------- create
   function create(canvas, opts) {
     opts = opts || {};
@@ -587,9 +600,12 @@
     try {
       gl = canvas.getContext('webgl2', {
         alpha: false, antialias: false, depth: false, stencil: false,
-        premultipliedAlpha: false, preserveDrawingBuffer: false, powerPreference: 'high-performance'
+        premultipliedAlpha: false, preserveDrawingBuffer: false, powerPreference: 'high-performance',
+        failIfMajorPerformanceCaveat: true
       });
-      if (!gl || !gl.getExtension('EXT_color_buffer_float')) return null;
+      if (!gl) return null;
+      if (isSoftwareRenderer(gl)) { releaseContext(gl); return null; }
+      if (!gl.getExtension('EXT_color_buffer_float')) return null;
       renderer = new THREE.WebGLRenderer({ canvas: canvas, context: gl, antialias: false, alpha: false, depth: false, stencil: false });
       if (!renderer.capabilities.isWebGL2) { renderer.dispose(); return null; }
       return build(canvas, opts, THREE, gl, renderer);
