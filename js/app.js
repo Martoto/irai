@@ -194,7 +194,8 @@ if(window.ResizeObserver){const ro=new ResizeObserver(applyFocus);ro.observe(her
 else window.addEventListener('resize',applyFocus);
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(applyFocus);
 function simVisibility(){
-  if(!swarm)return;
+  /* reduced motion: swarm.js shows one settled frame, and resume() would cancel that, so leave it alone */
+  if(!swarm||reduce.matches)return;
   const should=currentView==='home'&&!document.hidden&&!sim.paused;
   if(should)swarm.resume();else swarm.pause();
 }
