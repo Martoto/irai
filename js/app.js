@@ -154,8 +154,9 @@ $('#scrollCue').addEventListener('click',()=>{const t=$('#ceiling');if(t)t.scrol
 /* ====================== HERO: N_eff demo driving the 3D swarm ====================== */
 const sim={N:1000,rho:0.25,paused:false};
 const cv=$('#swarm'),fallback=$('#swarmFallback'),pauseBtn=$('#pauseBtn');
-/* Where the swarm should sit: the centre of the empty .swarm-window, as 0..1 of the hero box
-   (the canvas fills the hero, so this is also the canvas CSS box). */
+/* Where and how big the swarm should be: the centre of the empty .swarm-window as 0..1 of the
+   hero box (the canvas fills the hero, so this is also the canvas CSS box), plus a radius as a
+   fraction of the canvas height that the cloud's outer extent must fit in. Returns [x, y, radius]. */
 const heroEl=$('.hero'),swarmWin=$('#swarmWindow');
 function swarmFocus(){
   const c=heroEl.getBoundingClientRect(),w=swarmWin.getBoundingClientRect();
@@ -167,15 +168,26 @@ function swarmFocus(){
     const pt=$('.console').getBoundingClientRect().top-c.top;
     y=Math.max(c.height*0.24,Math.min(y,pt-c.height*0.2));
   }
-  return [(w.left+w.width/2-c.left)/c.width,y/c.height];
+  const x=w.left+w.width/2-c.left;
+  let r;
+  if(getComputedStyle(swarmWin).position==='absolute'){
+    /* desktop: a large cloud, ~0.30 of the hero height at 1440×900, scaled with the aspect ratio
+       (0.26–0.32); its lower part may pass behind the opaque panel, the centre may not (rule above).
+       Capped so it stays clear of the header (the clamp above can lift the centre toward the nav)
+       and inside the right edge. */
+    r=Math.min(0.32,Math.max(0.26,0.30*(c.width/c.height)/1.6))*c.height;
+    r=Math.min(r,y-$('#top').offsetHeight-8,c.width-x); /* hero starts at the page top, under the fixed header */
+  }else r=Math.min(w.width,w.height)/2; /* mobile: the dedicated gap */
+  return [x/c.width,y/c.height,Math.max(0,r)/c.height];
 }
 let swarm=null;
-try{swarm=(window.IraiSwarm&&typeof window.IraiSwarm.create==='function')?window.IraiSwarm.create(cv,{rho:sim.rho,agents:sim.N,reducedMotion:reduce.matches,focus:swarmFocus()||[0.68,0.42]}):null;}catch(_){swarm=null;}
+const f0=swarmFocus()||[0.68,0.42,0.19];
+try{swarm=(window.IraiSwarm&&typeof window.IraiSwarm.create==='function')?window.IraiSwarm.create(cv,{rho:sim.rho,agents:sim.N,reducedMotion:reduce.matches,focus:[f0[0],f0[1]],radius:f0[2]}):null;}catch(_){swarm=null;}
 if(!swarm){cv.hidden=true;fallback.hidden=false;pauseBtn.hidden=true;$('#hudState').textContent='FEED // STATIC';}
 function applyFocus(){
   const f=swarmFocus();if(!f)return;
   heroEl.style.setProperty('--fx',(f[0]*100).toFixed(2)+'%');heroEl.style.setProperty('--fy',(f[1]*100).toFixed(2)+'%');
-  if(swarm&&typeof swarm.setFocus==='function')swarm.setFocus(f[0],f[1]);
+  if(swarm&&typeof swarm.setFocus==='function')swarm.setFocus(f[0],f[1],f[2]);
 }
 applyFocus();
 if(window.ResizeObserver){const ro=new ResizeObserver(applyFocus);ro.observe(heroEl);ro.observe(swarmWin);}

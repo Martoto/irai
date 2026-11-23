@@ -206,6 +206,17 @@ input[type=range]:focus-visible{outline:2px solid var(--honey);outline-offset:4p
 .cue span{color:var(--honey);font-size:14px;animation:cue 1.8s ease-in-out infinite;order:2}
 .cue:hover{color:var(--honey)}
 @keyframes cue{50%{transform:translateY(4px)}}
+/* short desktop screens: a tighter panel sits lower, leaving the swarm more room above it */
+@media (min-width:901px) and (max-height:800px){
+  .hero-inner{padding-bottom:44px}
+  .console-bar{padding:5px 12px}
+  .console-top{padding:6px 12px}
+  .controls{padding:10px 12px;gap:10px}
+  .controls label{margin-bottom:6px}
+  .readout{padding-top:8px}
+  .cue{bottom:6px}
+  .hud-bl{bottom:12px}
+}
 @media (max-width:1100px) and (min-width:901px){
   .hero h1{grid-column:1/span 7}
   .hero p.lede,.hero .btn-row{grid-column:1/span 7}
