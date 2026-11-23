@@ -47,12 +47,12 @@ i{font-style:italic}
 .stack{display:flex;flex-direction:column;gap:var(--gap,16px)}
 
 /* ---------- CRT: scanlines + grain + hairline grid ---------- */
-/* absolute over the whole document (body is the containing block), so there is no viewport-sized seam */
-body::before,body::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:150}
-body::before{background:repeating-linear-gradient(to bottom,rgba(255,255,255,.028) 0 1px,transparent 1px 3px)}
+/* scanlines and grain are fixed to the viewport (the glass), so they stay put while the page scrolls */
+body::before,body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:150}
+body::before{background:repeating-linear-gradient(to bottom,rgba(255,255,255,.028) 0 1px,transparent 1px 3px);mix-blend-mode:overlay}
 body::after{opacity:.05;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
 body{position:relative}
-/* spans the whole document (not the viewport), so the hairlines run the full page with no edge */
+/* absolute, spanning the whole document via body (position:relative above), so the hairlines scroll with the page */
 .cols{position:absolute;inset:0;pointer-events:none;z-index:1}
 .cols .wrap{height:100%;display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:var(--cg)}
 .cols i{border-left:1px solid rgba(35,38,58,.45);border-right:1px solid rgba(35,38,58,.22)}
