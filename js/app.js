@@ -95,9 +95,7 @@ function renderPost(slug){
   const p=POSTS.find(x=>x.slug===slug),box=$('#article');box.textContent='';
   if(!p){box.append(h('a',{class:'back ui',href:'#blog',text:'Back to the blog'}),h('h1',{tabindex:'-1',text:'That post doesn\'t exist'}),h('p',{text:'It may have been renamed. The blog lists every post.'}));return;}
   const body=h('div',{class:'body'});body.innerHTML=p.body; /* static content defined above */
-  const n=POSTS.indexOf(p)+1;
   box.append(h('a',{class:'back ui',href:'#blog',text:'Back to the blog'}),
-    h('p',{class:'idx','aria-hidden':'true',text:'[B.'+String(n).padStart(2,'0')+'] // '+p.date+' // IRAI RESEARCH'}),
     h('h1',{tabindex:'-1',text:p.title}),
     h('p',{class:'by',text:postDate(p)+', '+p.mins+' min read, by IRAI Research'}),body,
     h('div',{class:'refs'},h('span',{class:'refs-h',text:'Sources'}),h('ul',null,p.refs.map(r=>h('li',{text:r})))),
@@ -135,7 +133,6 @@ function route(){
   onScroll();
   duskVisibility();
   ceilMaybe();
-  observeLabels();
 }
 window.addEventListener('hashchange',route);
 
@@ -186,7 +183,7 @@ function swarmFocus(){
 let swarm=null;
 const f0=swarmFocus()||[0.68,0.42,0.19];
 try{swarm=(window.IraiSwarm&&typeof window.IraiSwarm.create==='function')?window.IraiSwarm.create(cv,{rho:sim.rho,agents:sim.N,reducedMotion:reduce.matches,focus:[f0[0],f0[1]],radius:f0[2]}):null;}catch(_){swarm=null;}
-if(!swarm){cv.hidden=true;fallback.hidden=false;pauseBtn.hidden=true;$('#hudState').textContent='FEED // STATIC';}
+if(!swarm){cv.hidden=true;fallback.hidden=false;pauseBtn.hidden=true;}
 function applyFocus(){
   const f=swarmFocus();if(!f)return;
   heroEl.style.setProperty('--fx',(f[0]*100).toFixed(2)+'%');heroEl.style.setProperty('--fy',(f[1]*100).toFixed(2)+'%');
@@ -205,7 +202,6 @@ function updateReadout(){
   if(sim.rho===0)l2.append(b,' independent opinions.');
   else l2.append('About ',b,r===1?' independent opinion.':' independent opinions.');
   const pct=100/Math.sqrt(ne);$('#errLeft').textContent=(pct<10?pct.toFixed(1):Math.round(pct))+'%';
-  $('#hudStats').textContent='N='+sim.N+' ρ='+sim.rho.toFixed(2)+' N_EFF='+(ne<100?ne.toFixed(1):Math.round(ne));
   $('#rho').style.setProperty('--fill',(sim.rho/0.95*100).toFixed(1)+'%');
   clearTimeout(updateReadout.t);updateReadout.t=setTimeout(()=>{$('#heroLive').textContent=sim.N.toLocaleString('en')+' agents with error correlation '+sim.rho.toFixed(2)+' are worth about '+r+' independent '+(r===1?'opinion':'opinions')+'.';},700);
 }
@@ -222,11 +218,6 @@ pauseBtn.addEventListener('click',()=>{
 if(reduce.matches){sim.paused=true;pauseBtn.setAttribute('aria-pressed','true');pauseBtn.textContent='Play';}
 updateReadout();
 
-/* ---- HUD clock (Brasília time) ---- */
-const clockFmt=new Intl.DateTimeFormat('en-GB',{timeZone:TZ,hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'});
-function tickClock(){if(currentView==='home')$('#hudClock').textContent='BRT '+clockFmt.format(new Date());}
-tickClock();setInterval(tickClock,1000);
-
 /* ---- footer door: open 06:00–18:00 in São Paulo ---- */
 const hourFmt=new Intl.DateTimeFormat('en-GB',{timeZone:TZ,hour:'2-digit',hourCycle:'h23'});
 function updateDoor(){const hr=parseInt(hourFmt.format(new Date()),10)%24;$('#door').dataset.door=hr>=6&&hr<18?'open':'sealed';}
@@ -235,20 +226,6 @@ updateDoor();setInterval(updateDoor,60000);
 /* ---- manifesto edges: shade-glyph dithering, one row per density step ---- */
 function fillDither(){const n=Math.ceil(window.innerWidth/8)+4;for(const el of $$('.dither'))el.textContent=Array.from(el.dataset.rows,c=>c.repeat(n)).join('\n');}
 fillDither();window.addEventListener('resize',fillDither);
-
-/* ---- section labels: scramble in when they enter view ---- */
-const GLYPHS='░▒▓█▚▞<>/\\|_=+*#01';
-function scramble(el){
-  const final=el.dataset.final||el.textContent;el.dataset.final=final;
-  const start=performance.now(),dur=520;
-  (function frame(t){
-    const k=Math.min(1,(t-start)/dur),n=Math.floor(final.length*k);let s=final.slice(0,n);
-    for(let i=n;i<final.length;i++)s+=final[i]===' '?' ':GLYPHS[(Math.random()*GLYPHS.length)|0];
-    el.textContent=s;if(k<1)requestAnimationFrame(frame);else el.textContent=final;
-  })(start);
-}
-const labelIO=(!reduce.matches&&window.IntersectionObserver)?new IntersectionObserver(es=>{for(const e of es)if(e.isIntersecting){labelIO.unobserve(e.target);scramble(e.target);}},{rootMargin:'0px 0px -10% 0px'}):null;
-function observeLabels(){if(!labelIO)return;for(const el of $$('.view:not([hidden]) [data-scramble]')){if(el.dataset.seen)continue;el.dataset.seen='1';labelIO.observe(el);}}
 
 /* ====================== CEILING CHART ====================== */
 const CEIL=[[0.05,'--s1'],[0.25,'--s2'],[0.5,'--s3']];

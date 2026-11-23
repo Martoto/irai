@@ -88,13 +88,9 @@
                    ·                   · ·      .            . .· ·                    ·                       ·
                     ·        .             ·  · · ·  · · ·  · ·                      ·
                       · ·                                                        · ·                   ..</pre>
-    <div class="hud hud-tl" aria-hidden="true"><span class="blink">■</span> IRAI//SWARM.OBS <span class="dim">v2.6</span><br><span class="dim">LAT −23.55 LON −46.63</span></div>
-    <div class="hud hud-tr" aria-hidden="true"><span id="hudClock">BRT --:--:--</span><br><span class="dim" id="hudState">FEED // LIVE</span></div>
-    <div class="hud hud-bl" aria-hidden="true" id="hudStats">N=1000 ρ=0.25 N_EFF=4.0</div>
 
     <div class="hero-inner">
       <div class="hero-copy">
-        <p class="idx" aria-hidden="true" data-scramble>[00] // COLLECTIVE INTELLIGENCE OBSERVATORY</p>
         <h1 id="heroH" tabindex="-1"><span class="slogan">Swarms of societies of swarms.</span> <span class="claim"><span><b id="hN">1,000</b> agents.</span> <span id="hLine2">About <b id="hNeff">4</b> independent opinions.</span></span></h1>
         <div class="swarm-window" id="swarmWindow" aria-hidden="true"></div>
         <p class="lede">Copies of one model make the same mistakes. We measure how many independent opinions your AI swarm holds, and help you get more.</p>
@@ -105,7 +101,6 @@
       </div>
 
       <div class="console">
-        <div class="console-bar" aria-hidden="true"><span>N_EFF.CTL</span><span class="dim">// tty0</span></div>
         <div class="console-top">
           <ul class="legend" aria-hidden="true">
             <li><svg viewBox="0 0 14 14"><path d="M7 1v12M1 7h12" stroke="#E6E3D8" stroke-width="2"/></svg>truth</li>
@@ -141,14 +136,13 @@
   <section class="band" id="ceiling">
     <div class="wrap g12">
       <div class="col-a stack" style="--gap:20px">
-        <p class="idx" aria-hidden="true" data-scramble>[01] // THE CEILING</p>
         <h2>Past a point, more agents add nothing</h2>
         <p>When agents share their mistakes, what the crowd is worth levels off. At an error correlation of 0.25 the ceiling is four independent judges, whether you run fifty agents or fifty thousand.</p>
         <p>We first ran into this in our own experiment. One LLM agent outscored every person in the room, and the crowd of people still outscored every crowd of agents. Other groups report the same limit in model ensembles and LLM judge panels.</p>
         <p class="ui muted cite">Salles &amp; Graeml, <a href="https://aisel.aisnet.org/amcis2026/ai_aiaa/ai_aiaa/8">Echoes of Humanity</a> (AMCIS 2026). Lefort et al. (2024). Abels &amp; Lenaerts (IJCAI 2025). Kohli (2026, preprint).</p>
       </div>
       <figure class="viz frame col-b">
-        <div class="fig-bar" aria-hidden="true"><span>FIG.01</span><span>N_EFF = N / (1 + (N − 1)ρ)</span></div>
+        <p class="fig-formula">N<sub>eff</sub> = N / (1 + (N − 1)<span class="rho">ρ</span>)</p>
         <h3>Independent judges a swarm is worth</h3>
         <p class="sub">by number of agents, at three levels of error correlation</p>
         <div class="plotbox" id="ceilPlot"></div>
@@ -164,22 +158,21 @@
   <section class="band">
     <div class="wrap">
       <div class="head g12">
-        <p class="idx" aria-hidden="true" data-scramble>[02] // WHAT WE DO</p>
         <h2>What we do</h2>
       </div>
       <div class="rows">
         <div class="row">
-          <div class="rec"><span class="rec-id" aria-hidden="true">REC.01</span><h3>Neff Audit</h3><span class="status on">Pilot open</span></div>
+          <div class="rec"><h3>Neff Audit</h3><span class="status on">Pilot open</span></div>
           <div><p class="q">How many independent judges are in your agent fleet?</p><p>Send us your swarm's outputs. We report its error correlation and effective crowd size, prescribe the cheapest fix, and measure again.</p></div>
           <div class="for"><span>For teams running judge panels, agent fleets and ensembles</span><a href="#product-neff">See the audit</a></div>
         </div>
         <div class="row">
-          <div class="rec"><span class="rec-id" aria-hidden="true">REC.02</span><h3>Model Society</h3><span class="status warm">Validation</span></div>
+          <div class="rec"><h3>Model Society</h3><span class="status warm">Validation</span></div>
           <div><p class="q">A synthetic population of Brazil, scored against real outcomes.</p><p>The population comes from public TSE and IBGE data. Language models only supply how each kind of person is likely to choose, and every forecast is checked against published results.</p></div>
           <div class="for"><span>For research and polling firms, brands, banks and policy teams</span><a href="#product-society">See Model Society</a></div>
         </div>
         <div class="row">
-          <div class="rec"><span class="rec-id" aria-hidden="true">REC.03</span><h3>Guarda</h3><span class="status warm">In development</span></div>
+          <div class="rec"><h3>Guarda</h3><span class="status warm">In development</span></div>
           <div><p class="q">Monitoring for the whole swarm.</p><p>One injected sentence can flip every agent of a lineage at once. Guarda tracks correlated failure, collusion and monoculture exposure across the whole swarm.</p></div>
           <div class="for"><span>For AI lab evaluation teams, security teams and regulators</span><a href="#product-guarda">See Guarda</a></div>
         </div>
@@ -190,7 +183,6 @@
   <section class="band">
     <div class="wrap g12">
       <div class="col-a stack" style="--gap:20px">
-        <p class="idx" aria-hidden="true" data-scramble>[03] // DIVERSITY LADDER</p>
         <h2>Crowd wisdom has to be built</h2>
         <p>People in a crowd each know something the others don't. Agents built on one model all know the same things.</p>
         <p>Here are eight ways to change that, shallowest first. Our research ranks them by how much each one lowers error correlation per dollar.</p>
@@ -198,14 +190,14 @@
       <div class="col-b">
         <div class="depth" aria-hidden="true"><span>shallow</span><span>▁▂▃▄▅▆▇█</span><span>deep</span></div>
         <ol class="ladder">
-          <li style="--d:0" class="now"><span class="rung" aria-hidden="true">rung 0</span><span class="bars" aria-hidden="true"><b>▁</b>▂▃▄▅▆▇█</span><div><h4>Sampling <span class="flag">where most swarms stop</span></h4><p>Temperature and seeds. Noise around one shared belief.</p></div></li>
-          <li style="--d:1"><span class="rung" aria-hidden="true">rung 1</span><span class="bars" aria-hidden="true"><b>▁▂</b>▃▄▅▆▇█</span><div><h4>Persona</h4><p>Expert roles and demographic prompts. Cheap, and prone to caricature.</p></div></li>
-          <li style="--d:2"><span class="rung" aria-hidden="true">rung 2</span><span class="bars" aria-hidden="true"><b>▁▂▃</b>▄▅▆▇█</span><div><h4>Reasoning strategy</h4><p>Base rates, checklists, counterfactuals, red-team framing.</p></div></li>
-          <li style="--d:3"><span class="rung" aria-hidden="true">rung 3</span><span class="bars" aria-hidden="true"><b>▁▂▃▄</b>▅▆▇█</span><div><h4>Lineage</h4><p>Different providers, corpora and languages. Sabiá beside GPT beside Gemini.</p></div></li>
-          <li style="--d:4"><span class="rung" aria-hidden="true">rung 4</span><span class="bars" aria-hidden="true"><b>▁▂▃▄▅</b>▆▇█</span><div><h4>Information partition</h4><p>Each agent sees a different slice of the evidence.</p></div></li>
-          <li style="--d:5"><span class="rung" aria-hidden="true">rung 5</span><span class="bars" aria-hidden="true"><b>▁▂▃▄▅▆</b>▇█</span><div><h4>Tools and retrieval</h4><p>Different search engines, databases or document sets per agent.</p></div></li>
-          <li style="--d:6"><span class="rung" aria-hidden="true">rung 6</span><span class="bars" aria-hidden="true"><b>▁▂▃▄▅▆▇</b>█</span><div><h4>Weights</h4><p>Adapters fine-tuned on different data.</p></div></li>
-          <li style="--d:7"><span class="rung" aria-hidden="true">rung 7</span><span class="bars" aria-hidden="true"><b>▁▂▃▄▅▆▇█</b></span><div><h4>Human-seeded</h4><p>Agents conditioned on real people's interviews or answers.</p></div></li>
+          <li style="--d:0" class="now"><span class="bars" aria-hidden="true"><b>▁</b>▂▃▄▅▆▇█</span><div><h4>Sampling <span class="flag">where most swarms stop</span></h4><p>Temperature and seeds. Noise around one shared belief.</p></div></li>
+          <li style="--d:1"><span class="bars" aria-hidden="true"><b>▁▂</b>▃▄▅▆▇█</span><div><h4>Persona</h4><p>Expert roles and demographic prompts. Cheap, and prone to caricature.</p></div></li>
+          <li style="--d:2"><span class="bars" aria-hidden="true"><b>▁▂▃</b>▄▅▆▇█</span><div><h4>Reasoning strategy</h4><p>Base rates, checklists, counterfactuals, red-team framing.</p></div></li>
+          <li style="--d:3"><span class="bars" aria-hidden="true"><b>▁▂▃▄</b>▅▆▇█</span><div><h4>Lineage</h4><p>Different providers, corpora and languages. Sabiá beside GPT beside Gemini.</p></div></li>
+          <li style="--d:4"><span class="bars" aria-hidden="true"><b>▁▂▃▄▅</b>▆▇█</span><div><h4>Information partition</h4><p>Each agent sees a different slice of the evidence.</p></div></li>
+          <li style="--d:5"><span class="bars" aria-hidden="true"><b>▁▂▃▄▅▆</b>▇█</span><div><h4>Tools and retrieval</h4><p>Different search engines, databases or document sets per agent.</p></div></li>
+          <li style="--d:6"><span class="bars" aria-hidden="true"><b>▁▂▃▄▅▆▇</b>█</span><div><h4>Weights</h4><p>Adapters fine-tuned on different data.</p></div></li>
+          <li style="--d:7"><span class="bars" aria-hidden="true"><b>▁▂▃▄▅▆▇█</b></span><div><h4>Human-seeded</h4><p>Agents conditioned on real people's interviews or answers.</p></div></li>
         </ol>
         <p class="note">We're testing a ninth rung, activation steering, which shifts how a model reasons without retraining it. The open question is whether it buys as much independence as a second lineage, and at what cost.</p>
       </div>
@@ -215,7 +207,6 @@
   <section class="band">
     <div class="wrap">
       <div class="head g12 head-row">
-        <p class="idx" aria-hidden="true" data-scramble>[04] // FIELD LOG</p>
         <h2>From the blog</h2>
         <a class="ui more" href="#blog">All posts</a>
       </div>
@@ -226,7 +217,6 @@
   <section class="band" data-forum>
     <div class="wrap g12">
       <div class="col-a stack" style="--gap:20px">
-        <p class="idx" aria-hidden="true" data-scramble>[05] // OPEN CHANNEL</p>
         <h2>Argue with us in the forum</h2>
         <p>We'd like to be corrected. Bring your numbers, your baselines and the cases where it all went wrong.</p>
         <div><a class="btn btn-ghost" href="#forum">Open the forum</a></div>
@@ -238,7 +228,6 @@
   <section class="manifesto" aria-labelledby="missionText">
     <pre class="dither" data-rows="░▒▓" aria-hidden="true"></pre>
     <div class="col">
-      <p class="m-idx" aria-hidden="true">[06] // MANIFESTO</p>
       <svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><circle cx="15" cy="17" r="9" fill="none" stroke="#05060A" stroke-width="3.2"/><circle cx="15" cy="17" r="2.6" fill="#05060A"/><circle cx="27" cy="7" r="2.4" fill="#05060A"/><circle cx="29" cy="19" r="1.7" fill="#05060A"/><circle cx="20" cy="3" r="1.5" fill="#05060A"/></svg>
       <p class="mission" id="missionText">We started this company to answer one question: how many minds are in the swarm?</p>
       <p class="sign" lang="pt">iraí</p>
@@ -255,14 +244,13 @@
 <!-- ====================== PRODUCTS ====================== -->
 <div class="view" data-view="products" hidden>
   <div class="wrap page-head">
-    <p class="idx" aria-hidden="true" data-scramble>[P] // PRODUCTS // 03 RECORDS</p>
     <h1 tabindex="-1">Products</h1>
     <p class="measure lede">Keep whatever agent framework you already run. We measure how well the agents on it think as a group, and we improve that.</p>
   </div>
 
   <section class="band tight" id="p-neff">
     <div class="wrap product">
-      <div class="side"><span class="rec-id" aria-hidden="true">REC.01 // AUDIT</span><h2>Neff Audit</h2><span class="chip on">Open for pilot engagements</span><a class="btn btn-primary" href="#contact" data-topic="Neff Audit">Book a swarm audit</a></div>
+      <div class="side"><h2>Neff Audit</h2><span class="chip on">Open for pilot engagements</span><a class="btn btn-primary" href="#contact" data-topic="Neff Audit">Book a swarm audit</a></div>
       <div class="body">
         <p class="measure">You run many agents because many opinions should beat one. The audit tells you how many opinions you're paying for and how many you're getting.</p>
         <div>
@@ -289,7 +277,7 @@
 
   <section class="band tight" id="p-society">
     <div class="wrap product">
-      <div class="side"><span class="rec-id" aria-hidden="true">REC.02 // SIMULATION</span><h2>Model Society</h2><span class="chip warm">In research validation</span><a class="btn btn-ghost" href="#contact" data-topic="Model Society">Ask about Model Society</a></div>
+      <div class="side"><h2>Model Society</h2><span class="chip warm">In research validation</span><a class="btn btn-ghost" href="#contact" data-topic="Model Society">Ask about Model Society</a></div>
       <div class="body">
         <p class="measure">A synthetic population of Brazil that starts from the real electorate and consumer base, and is scored against outcomes anyone can check. Latin America comes next.</p>
         <div class="defs">
@@ -307,7 +295,7 @@
 
   <section class="band tight" id="p-guarda">
     <div class="wrap product">
-      <div class="side"><span class="rec-id" aria-hidden="true">REC.03 // MONITORING</span><h2>Guarda</h2><span class="chip warm">In development</span><a class="btn btn-ghost" href="#contact" data-topic="Guarda">Ask about Guarda</a></div>
+      <div class="side"><h2>Guarda</h2><span class="chip warm">In development</span><a class="btn btn-ghost" href="#contact" data-topic="Guarda">Ask about Guarda</a></div>
       <div class="body">
         <p class="measure">Most monitoring watches one agent and its permissions. Guarda watches what a group of agents does together. It's named for the guard bees that hover at a stingless-bee nest entrance.</p>
         <div class="defs">
@@ -324,14 +312,13 @@
 <!-- ====================== RESEARCH ====================== -->
 <div class="view" data-view="research" hidden>
   <div class="wrap page-head">
-    <p class="idx" aria-hidden="true" data-scramble>[R] // RESEARCH PROGRAMME</p>
     <h1 tabindex="-1">Research</h1>
     <p class="measure lede">We study how the collective intelligence of human crowds does and doesn't emerge in swarms of language models, and what it takes to build it on purpose.</p>
   </div>
 
   <section class="band tight">
     <div class="wrap">
-      <div class="head g12"><p class="idx" aria-hidden="true" data-scramble>[R.1] // OPEN QUESTIONS</p><h2>Open questions we're working on</h2></div>
+      <div class="head g12"><h2>Open questions we're working on</h2></div>
       <div class="defs">
         <div><h4>The diversity ladder, priced</h4><p>Rank sampling, persona, reasoning strategy, lineage, information partition, tools and weights on one task, in error-correlation terms, per dollar.</p></div>
         <div><h4>Steering as a new rung</h4><p>Where activation steering sits between a persona prompt and a fine-tuned adapter.</p></div>
@@ -346,7 +333,7 @@
 
   <section class="band tight">
     <div class="wrap">
-      <div class="head g12"><p class="idx" aria-hidden="true" data-scramble>[R.2] // INSTRUMENTS</p><h2>The measurement kit</h2><p class="measure">Every study and every audit reports the same five things, so results can be compared across tasks.</p></div>
+      <div class="head g12"><h2>The measurement kit</h2><p class="measure">Every study and every audit reports the same five things, so results can be compared across tasks.</p></div>
       <div class="defs">
         <div><h4>Error correlation</h4><p>The average pairwise correlation of agents' errors, written <span class="rho">ρ</span>, reported within and across each diversity lever.</p></div>
         <div><h4>Effective crowd size</h4><p>How many independent judges a swarm of N correlated agents is worth.</p><p class="formula">N<sub>eff</sub> = N / (1 + (N − 1)<span class="rho">ρ</span>)</p></div>
@@ -359,7 +346,7 @@
 
   <section class="band tight">
     <div class="wrap">
-      <div class="head g12"><p class="idx" aria-hidden="true" data-scramble>[R.3] // PUBLICATIONS</p><h2>Papers</h2><p class="ui muted">Working titles are marked as such. Planned work lists its design, never results.</p></div>
+      <div class="head g12"><h2>Papers</h2><p class="ui muted">Working titles are marked as such. Planned work lists its design, never results.</p></div>
       <div class="list log">
         <div class="item"><div class="meta"><span class="chip on">Published</span></div><div><h3><a href="https://aisel.aisnet.org/amcis2026/ai_aiaa/ai_aiaa/8">Echoes of Humanity: The Collective Mind of LLM Agents</a></h3><p>An exploratory pilot. People and LLM agents rate the same emails for fraud. The best individual is an agent and the best crowd is human. Sampling temperature alone doesn't give agents the disagreement a crowd needs.</p><div class="sub"><span>Salles &amp; Graeml</span><span>AMCIS 2026 Proceedings, SIG AIAA, Paper 1719</span><span>Journal extension in preparation</span></div></div></div>
         <div class="item"><div class="meta"><span class="chip">In design</span></div><div><h3>Built, Not Sampled: Engineering Crowd Wisdom in LLM Agent Swarms through Intersecting Knowledge</h3><p>Two studies. The first splits the evidence of a fraud case between agents and sweeps the overlap from disjoint to identical, expecting accuracy to peak in between. The second tests whether Portuguese-native and global models fail on different Brazilian scams.</p><div class="sub"><span>Working title</span></div></div></div>
@@ -374,7 +361,7 @@
 
   <section class="band tight">
     <div class="wrap">
-      <div class="head g12"><p class="idx" aria-hidden="true" data-scramble>[R.4] // PROTOCOL</p><h2>Rules we hold ourselves to</h2></div>
+      <div class="head g12"><h2>Rules we hold ourselves to</h2></div>
       <div class="defs">
         <div><h4>Preregister before outcomes exist</h4><p>Forecasts are hashed and timestamped before the result is known.</p></div>
         <div><h4>Score against the noise floor</h4><p>Every level of granularity has an error no model can beat. We report skill above it, never against zero.</p></div>
@@ -390,7 +377,6 @@
 <!-- ====================== BLOG ====================== -->
 <div class="view" data-view="blog" hidden>
   <div class="wrap page-head">
-    <p class="idx" aria-hidden="true" data-scramble>[B] // FIELD LOG // 06 ENTRIES</p>
     <h1 tabindex="-1">Blog</h1>
     <p class="measure lede">Notes from the research programme: what we measured, what we plan to, and how to read the numbers.</p>
   </div>
@@ -404,7 +390,6 @@
 <!-- ====================== FORUM ====================== -->
 <div class="view" data-view="forum" hidden>
   <div class="wrap page-head">
-    <p class="idx" aria-hidden="true" data-scramble>[F] // OPEN CHANNEL</p>
     <h1 tabindex="-1">Forum</h1>
     <p class="measure lede">Bring numbers. Cite your sources and say when something is a preprint. Anyone who can open this site can read what you post.</p>
   </div>
@@ -449,7 +434,6 @@
 <!-- ====================== CONTACT ====================== -->
 <div class="view" data-view="contact" hidden>
   <div class="wrap page-head">
-    <p class="idx" aria-hidden="true" data-scramble>[C] // UPLINK</p>
     <h1 tabindex="-1">Contact</h1>
     <p class="measure lede">Tell us what you run and what you'd like to know about it. For an audit, a rough count of agents or judges and the task they do is enough to start.</p>
   </div>
@@ -483,7 +467,7 @@
   </section>
   <section class="band tight" id="inboxBand" hidden>
     <div class="wrap">
-      <div class="head g12"><p class="idx" aria-hidden="true">[C.1] // INBOX</p><h2>Inbox</h2><p class="ui muted">Only the owner and editors of this site see this section.</p></div>
+      <div class="head g12"><h2>Inbox</h2><p class="ui muted">Only the owner and editors of this site see this section.</p></div>
       <div class="list log" id="inboxList"><p class="empty">No messages yet.</p></div>
     </div>
   </section>
@@ -492,21 +476,18 @@
 <!-- ====================== ABOUT ====================== -->
 <div class="view" data-view="about" hidden>
   <div class="wrap page-head">
-    <p class="idx" aria-hidden="true" data-scramble>[A] // ORIGIN // NANNOTRIGONA TESTACEICORNIS</p>
     <h1 tabindex="-1">About IRAI</h1>
     <p class="measure lede">IRAI is a Brazilian research company that measures and engineers the collective intelligence of AI swarms.</p>
   </div>
   <section class="band tight flush">
     <div class="wrap g12">
       <div class="col-a stack" style="--gap:20px">
-        <p class="idx" aria-hidden="true" data-scramble>[A.1] // THE NAME</p>
         <h2>Named after a bee that locks its door at night</h2>
         <p>The iraí, <i>Nannotrigona testaceicornis</i>, is a stingless bee a few millimetres long, black with grey hairs, at home in hollow bricks and stone walls across Brazilian cities. Its name is usually read from Tupi as “river of honey”.</p>
         <p>Every evening the colony seals its wax entrance tube. Every morning it opens it again. Guards stay around the entrance through the day.</p>
         <p>We liked three things about it. A colony is many small workers with different jobs, which is our thesis about swarms. The guards are our safety work. And the name ends in AI.</p>
       </div>
       <div class="col-b stack" style="--gap:20px">
-        <p class="idx" aria-hidden="true" data-scramble>[A.2] // THE COMPANY</p>
         <h2>Where the company comes from</h2>
         <p>IRAI grows out of ICIA, a research programme on how the collective intelligence of human crowds emerges in swarms of language models. Its first paper, <a href="https://aisel.aisnet.org/amcis2026/ai_aiaa/ai_aiaa/8">Echoes of Humanity</a>, was presented at AMCIS 2026.</p>
         <p>What that programme found is why the company exists. Run one model a thousand times and you still have one opinion.</p>
@@ -564,7 +545,7 @@
       <div><h4>Company</h4><ul id="footCompany"><li><a href="#about">About</a></li><li><a href="#contact">Contact</a></li><li><a href="https://aisel.aisnet.org/amcis2026/ai_aiaa/ai_aiaa/8">Echoes of Humanity paper</a></li></ul></div>
     </div>
   </div>
-  <div class="fine"><div class="wrap"><span>Synthetic simulations published by IRAI are research outputs, never electoral polls.</span><span class="fine-meta" aria-hidden="true">IRAI//SYS — LAT −23.55 LON −46.63 — EOF</span></div></div>
+  <div class="fine"><div class="wrap"><span>Synthetic simulations published by IRAI are research outputs, never electoral polls.</span></div></div>
 </footer>
 </body>
 </html>
