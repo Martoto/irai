@@ -1,5 +1,8 @@
 (function(){
 "use strict";
+/* Address the contact form sends to when the site has no storage (any normal static host).
+   Leave '' to keep the storage-only form; set it to e.g. 'team@example.org' to send by email. */
+const CONTACT_EMAIL='daniel.sant.salles@gmail.com';
 const $=(s,r=document)=>r.querySelector(s);
 const $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
 function h(tag,attrs,...kids){
@@ -98,7 +101,7 @@ function renderPost(slug){
     h('h1',{tabindex:'-1',text:p.title}),
     h('p',{class:'by',text:postDate(p)+', '+p.mins+' min read, by IRAI Research'}),body,
     h('div',{class:'refs'},h('span',{class:'refs-h',text:'Sources'}),h('ul',null,p.refs.map(r=>h('li',{text:r})))),
-    h('div',{class:'after'},h('a',{class:'btn btn-ghost',href:'#forum',text:'Discuss this in the forum'}),(()=>{const nx=POSTS[(POSTS.indexOf(p)+1)%POSTS.length];return h('a',{class:'btn btn-ghost',href:'#post-'+nx.slug,text:'Next: '+nx.title});})()));
+    h('div',{class:'after'},h('a',{class:'btn btn-ghost',href:'#forum','data-forum':true,text:'Discuss this in the forum'}),(()=>{const nx=POSTS[(POSTS.indexOf(p)+1)%POSTS.length];return h('a',{class:'btn btn-ghost',href:'#post-'+nx.slug,text:'Next: '+nx.title});})()));
 }
 
 /* ====================== ROUTER ====================== */
@@ -112,6 +115,7 @@ function route(){
   else if(name.startsWith('product-')){view='products';arg=name.slice(8);}
   else if(VIEWS.includes(name))view=name;
   else if(name==='main-content'){return;}
+  if((view==='forum'||view==='thread')&&!forumPossible()){history.replaceState(null,'','#contact');view='contact';arg=null;}
   currentView=view;currentThread=view==='thread'?arg:null;
   $$('.view').forEach(v=>{v.hidden=v.dataset.view!==view;});
   const navKey=view==='post'?'blog':view==='thread'?'forum':view;
@@ -331,6 +335,9 @@ const CATS=[['measure','Measurement'],['diversity','Diversity engineering'],['so
 const CATNAME=Object.fromEntries(CATS);
 const TEAM='irai-team';
 const F={db:null,user:null,me:null,canWrite:null,canEdit:false,docs:new Map(),state:'loading',stale:false,cat:'all',inbox:null};
+const HAS_STORAGE_API=!!(window.claude&&typeof window.claude.use==='function');
+/* The forum exists only where storage does. While storage is still connecting, forum routes are allowed to wait for it. */
+function forumPossible(){return !!F.db||(F.state==='loading'&&HAS_STORAGE_API);}
 function newId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
 function allPosts(){
   const out=[];
@@ -489,21 +496,52 @@ $('#replyForm').addEventListener('submit',async e=>{
 });
 
 /* ---- contact ---- */
+function mailMode(){return !!CONTACT_EMAIL&&!F.db;}
+function mailLink(text){return h('a',{href:'mailto:'+CONTACT_EMAIL,class:'mail',text:text||CONTACT_EMAIL});}
 function renderContactState(){
   const note=$('#contactNote');let msg='';
-  if(F.state==='nodb')msg='This view of the site can\'t store messages. Sign in to Claude and reopen the page, or copy your message and send it to the team another way.';
+  const mail=F.state==='nodb'&&mailMode();
+  if(mail)msg='Messages go to ';
+  else if(F.state==='nodb')msg='This view of the site can\'t store messages. Sign in to Claude and reopen the page, or copy your message and send it to the team another way.';
   else if(F.state==='ready'&&(F.canWrite===false||!F.me))msg='You have view-only access, so this form can\'t store your message. Ask the site owner for contributor access, or copy your message and send it another way.';
   note.hidden=!msg;note.textContent=msg;$('#cCopy').hidden=!msg;
-  $('#cSubmit').disabled=!!msg||F.state==='loading';
+  if(mail)note.append(mailLink(),'. Your email app opens with the form filled in.');
+  $('#cSubmit').disabled=(!!msg&&!mail)||F.state==='loading';
 }
 function contactText(){return ['Name: '+$('#cName').value.trim(),'Email: '+$('#cEmail').value.trim(),'Organisation: '+$('#cOrg').value.trim(),'About: '+$('#cTopic').value,'',$('#cBody').value.trim()].join('\n');}
-$('#cCopy').addEventListener('click',async()=>{const b=$('#cCopy');try{await navigator.clipboard.writeText(contactText());b.textContent='Copied';}catch(_){b.textContent='Copy failed. Select the text instead';}setTimeout(()=>{b.textContent='Copy message';},2500);});
+async function copyContact(b){try{await navigator.clipboard.writeText(contactText());b.textContent='Copied';}catch(_){b.textContent='Copy failed. Select the text instead';}setTimeout(()=>{b.textContent='Copy message';},2500);}
+$('#cCopy').addEventListener('click',()=>copyContact($('#cCopy')));
+$('#cCopyDone').addEventListener('click',()=>copyContact($('#cCopyDone')));
+/* mailto: URLs past ~2000 chars get cut or refused by some mail clients, so the message is shortened to fit. */
+const MAILTO_MAX=1800;
+function mailtoUrl(m){
+  const subject='[IRAI] '+m.topic+' — '+m.name;
+  const head=['Name: '+m.name,'Email to reply to: '+m.email,'Organisation: '+(m.org||'—'),'Topic: '+m.topic,'',''].join('\r\n');
+  const cut='\r\n\r\n[Message shortened to fit an email link. Paste the full text from the site\'s Copy message button.]';
+  const url=b=>'mailto:'+CONTACT_EMAIL+'?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(head+b);
+  const full=url(m.body);
+  if(full.length<=MAILTO_MAX)return {url:full,cut:false};
+  const chars=Array.from(m.body);let lo=0,hi=chars.length;
+  while(lo<hi){const mid=(lo+hi+1)>>1;if(url(chars.slice(0,mid).join('').trimEnd()+cut).length<=MAILTO_MAX)lo=mid;else hi=mid-1;}
+  return {url:url(chars.slice(0,lo).join('').trimEnd()+cut),cut:true};
+}
+function sendByEmail(m){
+  const {url,cut}=mailtoUrl(m);
+  const a=h('a',{href:url,hidden:true});document.body.append(a);a.click();a.remove();
+  $('#cDoneH').textContent='Your email app should open with the message';
+  const p=$('#cDoneP');p.textContent='Press send there to reach the team. If nothing opened, copy your message and send it to ';
+  p.append(mailLink(),'.');
+  if(cut)p.append(' Your message was too long for an email link, so the draft holds a shortened copy. Copy message gives you the full text.');
+  $('#cCopyDone').hidden=false;$('#cAgain').textContent='Back to the form';
+  $('#contactForm').hidden=true;const done=$('#contactDone');done.hidden=false;done.focus();
+}
 $('#contactForm').addEventListener('submit',async e=>{
   e.preventDefault();hideErr('#cErr');
   const name=$('#cName').value.trim(),email=$('#cEmail').value.trim(),body=$('#cBody').value.trim();
   if(!name){showErr('#cErr','Add your name so the team knows who is writing.');$('#cName').focus();return;}
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){showErr('#cErr','Enter an email address the team can reply to, like name@company.com.');$('#cEmail').focus();return;}
   if(body.length<10){showErr('#cErr','Write a sentence or two about what you need.');$('#cBody').focus();return;}
+  if(mailMode()){sendByEmail({name,email,org:$('#cOrg').value.trim().slice(0,160),topic:$('#cTopic').value,body:body.slice(0,4000)});return;}
   if(!F.db||!F.me){showErr('#cErr','This form can\'t store messages in this view. Use Copy message and send it another way.');$('#cCopy').hidden=false;return;}
   const btn=$('#cSubmit');btn.disabled=true;btn.textContent='Sending…';
   const msg={name,email,org:$('#cOrg').value.trim().slice(0,160),topic:$('#cTopic').value,body:body.slice(0,4000),at:Date.now()};
@@ -514,7 +552,8 @@ $('#contactForm').addEventListener('submit',async e=>{
   }catch(err){showErr('#cErr',errText(err).replace('The forum\'s storage','The site\'s storage'));$('#cCopy').hidden=false;}
   finally{btn.disabled=false;btn.textContent='Send message';}
 });
-$('#cAgain').addEventListener('click',()=>{$('#contactDone').hidden=true;$('#contactForm').hidden=false;$('#cBody').focus();});
+$('#cAgain').addEventListener('click',()=>{$('#contactDone').hidden=true;$('#contactForm').hidden=false;if(mailMode())$('#cSubmit').focus();else $('#cBody').focus();});
+if(CONTACT_EMAIL)$('#footCompany a[href="#contact"]').parentElement.after(h('li',null,mailLink()));
 function renderInbox(){
   if(!F.inbox)return;const list=$('#inboxList');list.textContent='';const rows=[];
   for(const [uid,doc] of F.inbox){const ms=(doc&&doc.messages)||{};for(const mid in ms){const m=ms[mid];if(m&&typeof m==='object')rows.push({uid,mid,m});}}
@@ -534,9 +573,10 @@ function renderAll(){renderForum();renderThread();renderContactState();}
 
 async function initData(){
   let db=null,user=null;
-  try{if(window.claude&&typeof window.claude.use==='function'){[db,user]=await Promise.all([window.claude.use('db'),window.claude.use('user')]);}}catch(_){}
+  try{if(HAS_STORAGE_API){[db,user]=await Promise.all([window.claude.use('db'),window.claude.use('user')]);}}catch(_){}
   F.db=db;F.user=user;
-  if(!db){F.state='nodb';renderAll();return;}
+  if(!db){F.state='nodb';renderAll();if(currentView==='forum'||currentView==='thread')route();return;}
+  document.documentElement.classList.remove('forum-off');
   if(user){
     try{F.me=await user.id();}catch(_){}
     try{F.canWrite=await user.can('data.write');}catch(_){}

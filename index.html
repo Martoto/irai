@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="forum-off">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -31,7 +31,7 @@
       <a href="#products" data-nav="products">Products</a>
       <a href="#research" data-nav="research">Research</a>
       <a href="#blog" data-nav="blog">Blog</a>
-      <a href="#forum" data-nav="forum">Forum</a>
+      <a href="#forum" data-nav="forum" data-forum>Forum</a>
       <a href="#about" data-nav="about">About</a>
       <a href="#contact" data-nav="contact" class="cta">Book a swarm audit</a>
     </nav>
@@ -223,7 +223,7 @@
     </div>
   </section>
 
-  <section class="band">
+  <section class="band" data-forum>
     <div class="wrap g12">
       <div class="col-a stack" style="--gap:20px">
         <p class="idx" aria-hidden="true" data-scramble>[05] // OPEN CHANNEL</p>
@@ -469,15 +469,15 @@
           <div class="form-actions"><button class="btn btn-primary" type="submit" id="cSubmit">Send message</button><button class="btn btn-ghost" type="button" id="cCopy" hidden>Copy message</button></div>
         </form>
         <div class="panel frame" id="contactDone" hidden tabindex="-1">
-          <h3>Message sent to the IRAI inbox</h3>
-          <p>The team reads this inbox and replies to the email you gave. You can send another message at any time.</p>
-          <div><button class="btn btn-ghost" type="button" id="cAgain">Write another message</button></div>
+          <h3 id="cDoneH">Message sent to the IRAI inbox</h3>
+          <p id="cDoneP">The team reads this inbox and replies to the email you gave. You can send another message at any time.</p>
+          <div class="form-actions"><button class="btn btn-ghost" type="button" id="cAgain">Write another message</button><button class="btn btn-ghost" type="button" id="cCopyDone" hidden>Copy message</button></div>
         </div>
       </div>
       <div class="col-aside aside stack" style="--gap:28px">
         <div><h4>Swarm audits</h4><p>Pilots are open now. We need outputs on a labelled task set, not your prompts or weights.</p></div>
         <div><h4>Research collaboration</h4><p>We work with groups studying hybrid collectives, silicon sampling, interpretability and Portuguese-language models.</p></div>
-        <div><h4>Prefer to talk in public?</h4><p>Technical questions get better answers in the <a href="#forum">forum</a>.</p></div>
+        <div data-forum><h4>Prefer to talk in public?</h4><p>Technical questions get better answers in the <a href="#forum">forum</a>.</p></div>
       </div>
     </div>
   </section>
@@ -560,8 +560,8 @@
         <p class="door" id="door" data-door="open"><span class="open">Entrance open</span><span class="closed">Entrance sealed for the night</span></p>
         <p class="door-note">The iraí seals its nest at nightfall and opens it at dawn. This site does the same on Brasília time: the entrance is open from 06:00 to 18:00 in São Paulo.</p>
       </div>
-      <div><h4>Site</h4><ul><li><a href="#products">Products</a></li><li><a href="#research">Research</a></li><li><a href="#blog">Blog</a></li><li><a href="#forum">Forum</a></li></ul></div>
-      <div><h4>Company</h4><ul><li><a href="#about">About</a></li><li><a href="#contact">Contact</a></li><li><a href="https://aisel.aisnet.org/amcis2026/ai_aiaa/ai_aiaa/8">Echoes of Humanity paper</a></li></ul></div>
+      <div><h4>Site</h4><ul><li><a href="#products">Products</a></li><li><a href="#research">Research</a></li><li><a href="#blog">Blog</a></li><li data-forum><a href="#forum">Forum</a></li></ul></div>
+      <div><h4>Company</h4><ul id="footCompany"><li><a href="#about">About</a></li><li><a href="#contact">Contact</a></li><li><a href="https://aisel.aisnet.org/amcis2026/ai_aiaa/ai_aiaa/8">Echoes of Humanity paper</a></li></ul></div>
     </div>
   </div>
   <div class="fine"><div class="wrap"><span>Synthetic simulations published by IRAI are research outputs, never electoral polls.</span><span class="fine-meta" aria-hidden="true">IRAI//SYS — LAT −23.55 LON −46.63 — EOF</span></div></div>
