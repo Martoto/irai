@@ -47,10 +47,13 @@ i{font-style:italic}
 .stack{display:flex;flex-direction:column;gap:var(--gap,16px)}
 
 /* ---------- CRT: scanlines + grain + hairline grid ---------- */
-body::before,body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:150}
-body::before{background:repeating-linear-gradient(to bottom,rgba(255,255,255,.035) 0 1px,transparent 1px 3px);mix-blend-mode:overlay}
+/* absolute over the whole document (body is the containing block), so there is no viewport-sized seam */
+body::before,body::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:150}
+body::before{background:repeating-linear-gradient(to bottom,rgba(255,255,255,.028) 0 1px,transparent 1px 3px)}
 body::after{opacity:.05;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
-.cols{position:fixed;inset:0;pointer-events:none;z-index:1}
+body{position:relative}
+/* spans the whole document (not the viewport), so the hairlines run the full page with no edge */
+.cols{position:absolute;inset:0;pointer-events:none;z-index:1}
 .cols .wrap{height:100%;display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:var(--cg)}
 .cols i{border-left:1px solid rgba(35,38,58,.45);border-right:1px solid rgba(35,38,58,.22)}
 main,.foot{position:relative;z-index:2}
@@ -139,7 +142,7 @@ input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px soli
 /* ---------- hero ---------- */
 .hero{position:relative;min-height:100vh;min-height:100svh;overflow:hidden;background:radial-gradient(120% 80% at 70% 45%,#0B0D18 0%,var(--bg) 60%);isolation:isolate}
 .hero #swarm{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:0}
-.hero-ascii{position:absolute;z-index:0;margin:0;right:-9vw;top:46%;transform:translateY(-50%);font-family:var(--mono);font-size:min(1.5vw,2.05svh);line-height:1.05;color:var(--honey);opacity:.62;white-space:pre;pointer-events:none;text-shadow:0 0 6px rgba(242,182,50,.45);user-select:none;-webkit-mask-image:radial-gradient(70% 70% at 55% 50%,#000 40%,transparent 100%);mask-image:radial-gradient(70% 70% at 55% 50%,#000 40%,transparent 100%)}
+.hero-ascii{position:absolute;z-index:0;margin:0;left:var(--fx,68%);top:var(--fy,42%);transform:translate(-50%,-50%);font-family:var(--mono);font-size:min(1.05vw,1.5svh);line-height:1.05;color:var(--honey);opacity:.66;white-space:pre;pointer-events:none;text-shadow:0 0 6px rgba(242,182,50,.45);user-select:none;-webkit-mask-image:radial-gradient(60% 60% at 55% 50%,#000 45%,transparent 100%);mask-image:radial-gradient(60% 60% at 55% 50%,#000 45%,transparent 100%)}
 .hud{position:absolute;z-index:3;font-family:var(--mono);font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;line-height:1.6;color:var(--text-2);pointer-events:none;mix-blend-mode:plus-lighter}
 .hud-tl{left:var(--gut);top:calc(var(--head) + 18px)}
 .hud-tr{right:var(--gut);top:calc(var(--head) + 18px);text-align:right}
@@ -150,12 +153,14 @@ input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px soli
 .hero-copy{display:contents}
 .hero-copy > *{pointer-events:auto}
 .hero-copy > .idx{grid-column:1/-1;grid-row:1;margin-bottom:22px}
-.hero h1{grid-column:1/span 8;grid-row:2}
+.hero h1{grid-column:1/span 8;grid-row:2;max-width:calc(55vw - max(var(--gut),(100vw - var(--wrap)) / 2 + var(--gut)))}
+/* the swarm's own clear window: an empty box the 3D swarm (or the ASCII fallback) is centred on */
+.swarm-window{position:absolute;left:56%;width:24%;top:23%;height:38%;pointer-events:none}
 .hero p.lede{grid-column:1/span 5;grid-row:3;margin-top:26px}
 .hero .btn-row{grid-column:1/span 6;grid-row:4;margin-top:24px}
 .hero h1{font-size:inherit;line-height:1;letter-spacing:0;text-wrap:initial;mix-blend-mode:plus-lighter}
 .hero h1:focus-visible{outline-offset:8px}
-.hero .slogan{display:block;font-size:clamp(3rem,7.3vw,9.4rem);font-weight:900;line-height:.86;letter-spacing:-.04em;color:var(--text);text-wrap:balance}
+.hero .slogan{display:block;font-size:clamp(3rem,5.6vw,8rem);font-weight:900;line-height:.86;letter-spacing:-.04em;color:var(--text);text-wrap:balance}
 .hero .claim{display:block;margin-top:clamp(18px,2.4vw,30px);font-size:clamp(1.15rem,2.3vw,2.1rem);font-weight:800;line-height:1.05;letter-spacing:-.01em;color:var(--text)}
 .hero .claim > span{display:inline}
 .hero .claim b{color:var(--honey);font-weight:inherit;font-variant-numeric:tabular-nums;text-shadow:0 0 18px rgba(242,182,50,.45)}
@@ -210,10 +215,12 @@ input[type=range]:focus-visible{outline:2px solid var(--honey);outline-offset:4p
   .hero{min-height:0}
   .hero-inner{min-height:0;display:flex;flex-direction:column;align-items:stretch;gap:24px;padding-top:calc(var(--head) + 60px);padding-bottom:64px}
   .hero-copy > .idx,.hero p.lede,.hero .btn-row{margin:0}
+  .hero h1{max-width:none}
+  .swarm-window{position:relative;order:1;left:auto;top:auto;width:100%;height:min(90vw,46svh);flex:none;margin:-8px 0}
   .hero p.lede{order:2}
   .console{order:3;max-width:560px;width:100%}
   .hero .btn-row{order:4}
-  .hero-ascii{top:calc(var(--head) + 40px);right:auto;left:50%;transform:translateX(-50%);font-size:min(1.45vw,8px);opacity:.5}
+  .hero-ascii{font-size:min(1.45vw,8px);opacity:.6}
   .hud-tr{display:none}
   .hud-tl{top:calc(var(--head) + 12px);font-size:10.5px}
   .hud-bl{bottom:20px;font-size:10.5px}
@@ -433,7 +440,13 @@ main{display:block;min-height:72vh}
 .foot{border-top:1px solid var(--line);margin-top:clamp(56px,8vw,104px);font-family:var(--mono);font-size:13px;color:var(--text-2);background:var(--bg)}
 body[data-view="home"] .foot{margin-top:0}
 .foot > .wrap{padding-top:clamp(40px,6vw,72px);padding-bottom:40px}
-.logotype{margin:0 0 clamp(32px,5vw,56px);font-family:var(--mono);font-size:clamp(12px,calc((min(100vw,var(--wrap)) - 2 * var(--gut)) / 13.4),110px);line-height:1.16;letter-spacing:-.02em;white-space:pre;color:var(--honey);text-shadow:0 0 .25em rgba(242,182,50,.35);overflow:hidden;user-select:none}
+.logotype{margin:0 0 clamp(32px,5vw,56px);overflow:hidden;user-select:none}
+.logotype pre{margin:0;font-family:var(--mono);font-size:9px;line-height:1.15;letter-spacing:0;white-space:pre;color:var(--honey);text-shadow:0 0 4px rgba(242,182,50,.35)}
+.logotype .sm{display:none;font-size:8.6px}
+.logotype i{font-style:normal}
+.logotype i.e{color:#FFE3A1;text-shadow:0 0 6px rgba(242,182,50,.75)}
+.logotype i.s{color:rgba(242,182,50,.32);text-shadow:none}
+@media (max-width:820px){.logotype .lg{display:none}.logotype .sm{display:block}}
 .foot-grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:var(--cg);row-gap:32px}
 .foot-grid > :nth-child(1){grid-column:1/span 6}
 .foot-grid > :nth-child(2){grid-column:8/span 2}

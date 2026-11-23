@@ -154,9 +154,26 @@ $('#scrollCue').addEventListener('click',()=>{const t=$('#ceiling');if(t)t.scrol
 /* ====================== HERO: N_eff demo driving the 3D swarm ====================== */
 const sim={N:1000,rho:0.25,paused:false};
 const cv=$('#swarm'),fallback=$('#swarmFallback'),pauseBtn=$('#pauseBtn');
+/* Where the swarm should sit: the centre of the empty .swarm-window, as 0..1 of the hero box
+   (the canvas fills the hero, so this is also the canvas CSS box). */
+const heroEl=$('.hero'),swarmWin=$('#swarmWindow');
+function swarmFocus(){
+  const c=heroEl.getBoundingClientRect(),w=swarmWin.getBoundingClientRect();
+  if(!c.width||!c.height||!w.width||!w.height)return null;
+  return [(w.left+w.width/2-c.left)/c.width,(w.top+w.height/2-c.top)/c.height];
+}
 let swarm=null;
-try{swarm=(window.IraiSwarm&&typeof window.IraiSwarm.create==='function')?window.IraiSwarm.create(cv,{rho:sim.rho,agents:sim.N,reducedMotion:reduce.matches}):null;}catch(_){swarm=null;}
+try{swarm=(window.IraiSwarm&&typeof window.IraiSwarm.create==='function')?window.IraiSwarm.create(cv,{rho:sim.rho,agents:sim.N,reducedMotion:reduce.matches,focus:swarmFocus()||[0.68,0.42]}):null;}catch(_){swarm=null;}
 if(!swarm){cv.hidden=true;fallback.hidden=false;pauseBtn.hidden=true;$('#hudState').textContent='FEED // STATIC';}
+function applyFocus(){
+  const f=swarmFocus();if(!f)return;
+  heroEl.style.setProperty('--fx',(f[0]*100).toFixed(2)+'%');heroEl.style.setProperty('--fy',(f[1]*100).toFixed(2)+'%');
+  if(swarm&&typeof swarm.setFocus==='function')swarm.setFocus(f[0],f[1]);
+}
+applyFocus();
+if(window.ResizeObserver){const ro=new ResizeObserver(applyFocus);ro.observe(heroEl);ro.observe(swarmWin);}
+else window.addEventListener('resize',applyFocus);
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(applyFocus);
 function simVisibility(){
   if(!swarm)return;
   const should=currentView==='home'&&!document.hidden&&!sim.paused;
