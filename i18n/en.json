@@ -48,8 +48,6 @@
   "hero.live.one": "{n} agents with error correlation {rho} are worth about {k} independent opinion.",
   "hero.live.other": "{n} agents with error correlation {rho} are worth about {k} independent opinions.",
   "hero.scroll": "Scroll",
-  "swarm.truth": "truth",
-  "swarm.crowd": "crowd",
 
   "ceiling.h2": "Past a point, more agents add nothing",
   "ceiling.p1": "When agents share their mistakes, what the crowd is worth levels off. At an error correlation of 0.25 the ceiling is four independent judges, whether you run fifty agents or fifty thousand.",

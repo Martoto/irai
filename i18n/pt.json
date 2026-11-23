@@ -50,8 +50,6 @@
   "hero.live.many": "{n} agentes com correlação de erros {rho} valem cerca de {k} opiniões independentes.",
   "hero.live.other": "{n} agentes com correlação de erros {rho} valem cerca de {k} opiniões independentes.",
   "hero.scroll": "Rolar",
-  "swarm.truth": "verdade",
-  "swarm.crowd": "multidão",
 
   "ceiling.h2": "A partir de certo ponto, mais agentes não acrescentam nada",
   "ceiling.p1": "Quando os agentes compartilham os mesmos erros, o valor da multidão se estabiliza. Com correlação de erros de 0,25, o teto é de quatro juízes independentes, seja com cinquenta agentes ou com cinquenta mil.",

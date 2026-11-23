@@ -50,8 +50,6 @@
   "hero.live.other": "{n} agents avec une corrélation d’erreurs {rho} valent environ {k} opinions indépendantes.",
   "hero.live.many": "{n} agents avec une corrélation d’erreurs {rho} valent environ {k} opinions indépendantes.",
   "hero.scroll": "Défiler",
-  "swarm.truth": "vérité",
-  "swarm.crowd": "foule",
 
   "ceiling.h2": "Au-delà d’un certain seuil, ajouter des agents ne sert à rien",
   "ceiling.p1": "Lorsque les agents partagent leurs erreurs, la valeur de la foule plafonne. Avec une corrélation d’erreurs de 0,25, le plafond est de quatre juges indépendants, que vous en fassiez tourner cinquante ou cinquante mille.",

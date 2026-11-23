@@ -46,8 +46,6 @@
   "hero.live.one": "{n} Agent mit einer Fehlerkorrelation von {rho} ist etwa {k} unabhängige Meinung wert.",
   "hero.live.other": "{n} Agenten mit einer Fehlerkorrelation von {rho} sind etwa {k} unabhängige Meinungen wert.",
   "hero.scroll": "Scrollen",
-  "swarm.truth": "Wahrheit",
-  "swarm.crowd": "Menge",
 
   "ceiling.h2": "Ab einem Punkt bringen weitere Agenten nichts mehr",
   "ceiling.p1": "Wenn Agenten ihre Fehler teilen, flacht der Wert der Menge ab. Bei einer Fehlerkorrelation von 0,25 liegt die Obergrenze bei vier unabhängigen Bewertern, egal ob Sie fünfzig Agenten oder fünfzigtausend einsetzen.",

@@ -24,7 +24,10 @@ const BASE = new URL(SITE_URL + '/').pathname; // '/irai/'
 const ORIGIN = new URL(SITE_URL).origin;
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
-const OUT = path.join(ROOT, 'dist');
+const DIST = path.join(ROOT, 'dist');
+/* the site is written next to dist/ and swapped in at the end, so a server reading dist/ never sees a half-built site */
+const OUT = path.join(ROOT, `dist.tmp-${process.pid}`);
+process.on('exit', () => fs.rmSync(OUT, { recursive: true, force: true })); // a failed build leaves dist/ as it was
 const STATIC_DIRS = ['css', 'js', 'assets'];
 
 const fail = msgs => { console.error('\nBuild failed:\n  ' + msgs.join('\n  ') + '\n'); process.exit(1); };
@@ -152,4 +155,9 @@ fs.writeFileSync(path.join(OUT, 'manifest.webmanifest'), JSON.stringify({
 }, null, 2) + '\n');
 fs.writeFileSync(path.join(OUT, '.nojekyll'), '');
 
-console.log(`built ${count} pages in ${LOCALES.length} languages -> ${path.relative(process.cwd(), OUT) || '.'}/ (${SITE_URL}/)`);
+const OLD = path.join(ROOT, `dist.old-${process.pid}`);
+if (fs.existsSync(DIST)) fs.renameSync(DIST, OLD);
+fs.renameSync(OUT, DIST);
+fs.rmSync(OLD, { recursive: true, force: true });
+
+console.log(`built ${count} pages in ${LOCALES.length} languages -> ${path.relative(process.cwd(), DIST) || '.'}/ (${SITE_URL}/)`);

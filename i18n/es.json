@@ -50,8 +50,6 @@
   "hero.live.other": "{n} agentes con correlación de errores {rho} equivalen a alrededor de {k} opiniones independientes.",
   "hero.live.many": "{n} agentes con correlación de errores {rho} equivalen a alrededor de {k} opiniones independientes.",
   "hero.scroll": "Desplazarse",
-  "swarm.truth": "verdad",
-  "swarm.crowd": "multitud",
 
   "ceiling.h2": "Pasado cierto punto, más agentes no suman nada",
   "ceiling.p1": "Cuando los agentes comparten sus errores, lo que vale la multitud deja de crecer. Con una correlación de errores de 0,25, el techo son cuatro jueces independientes, tengas cincuenta agentes o cincuenta mil.",
