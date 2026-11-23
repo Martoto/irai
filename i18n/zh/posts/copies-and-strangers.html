@@ -1,0 +1,7 @@
+<p>Take five judges who are each right 80% of the time and let the majority decide. If they are copies of one another, they are right and wrong on the same questions, so the majority is right 80% of the time. You paid for five and got one.</p>
+<p>Now take five judges who are each right only 70% of the time, and whose mistakes are unrelated. The majority is right about 84% of the time. With fifteen such judges it is 95%. The weaker group wins because its errors don't line up.</p>
+<h2>What it looks like in practice</h2>
+<p>We saw this pattern in our own experiment on fraud detection (Echoes of Humanity, AMCIS 2026). The best single judge was an LLM agent. The best crowd was the human one. The groups with the noisiest individuals gained most from averaging, and one model's crowd scored below its own best agent. That is what you'd expect when averaging has random noise to remove and a shared bias it can't touch.</p>
+<h2>Temperature is noise</h2>
+<p>The usual way to make copies of a model disagree is to raise the sampling temperature. Temperature perturbs the output around an unchanged belief. You get more spread and no second point of view. Renze and Guven tested nine models across temperatures from 0 to 1 and found no significant effect on accuracy.</p>
+<p>People differ in what they know and how they reason, so their mistakes fall on different questions. Agents built on one model have none of that. Our next studies try to give it to them.</p>

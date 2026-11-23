@@ -1,0 +1,59 @@
+[
+  {
+    "slug": "effective-crowd-size",
+    "date": "2026-11-20",
+    "mins": 4,
+    "refs": [
+      "Salles & Graeml (2026). Echoes of Humanity: The Collective Mind of LLM Agents. AMCIS 2026.",
+      "Lefort et al. (2024). Examining independence in ensemble sentiment analysis. arXiv:2409.00094.",
+      "Kohli (2026). Nine Judges, Two Effective Votes. arXiv:2605.29800. Unrefereed preprint."
+    ]
+  },
+  {
+    "slug": "copies-and-strangers",
+    "date": "2026-11-17",
+    "mins": 3,
+    "refs": [
+      "Salles & Graeml (2026). Echoes of Humanity. AMCIS 2026.",
+      "Renze & Guven (2024). The effect of sampling temperature on problem solving in LLMs. Findings of EMNLP 2024.",
+      "Hong & Page (2004). Groups of diverse problem solvers can outperform groups of high-ability problem solvers. PNAS 101(46)."
+    ]
+  },
+  {
+    "slug": "built-not-sampled",
+    "date": "2026-11-12",
+    "mins": 5,
+    "refs": [
+      "Surowiecki (2004). The Wisdom of Crowds.",
+      "Li, Naito & Shirado (2026). Systematic failures in collective reasoning under distributed information in multi-agent LLMs. ICML 2026. arXiv:2505.11556.",
+      "Stasser & Titus (1985). Pooling of unshared information in group decision making. JPSP 48(6)."
+    ]
+  },
+  {
+    "slug": "where-polls-cannot-see",
+    "date": "2026-11-06",
+    "mins": 5,
+    "refs": [
+      "Argyle et al. (2023). Out of one, many: Using language models to simulate human samples. Political Analysis 31(3).",
+      "Bisbee et al. (2024). Synthetic replacements for human survey data? Political Analysis 32(4).",
+      "Gelman & Little (1997). Poststratification into many categories using hierarchical logistic regression. Survey Methodology 23(2)."
+    ]
+  },
+  {
+    "slug": "one-injection-every-agent",
+    "date": "2026-10-30",
+    "mins": 3,
+    "refs": [
+      "Kleinberg & Raghavan (2021). Algorithmic monoculture and social welfare. PNAS 118(22)."
+    ]
+  },
+  {
+    "slug": "why-a-bee",
+    "date": "2026-10-22",
+    "mins": 2,
+    "refs": [
+      "USP Ribeirão Preto Botanical Garden. Iraí, Nannotrigona testaceicornis.",
+      "Alves et al. (2015). Biologia de abertura e fechamento do tubo de acesso de Nannotrigona testaceicornis. EntomoBrasilis 8(1)."
+    ]
+  }
+]
