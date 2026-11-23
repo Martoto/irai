@@ -42,7 +42,7 @@ function ladder(c) {
 export default {
   view: 'home',
   scripts: ['home'],
-  jsKeys: ['hero.agents', 'hero.opinions_about', 'hero.opinions_exact', 'hero.live', 'hero.pause', 'hero.resume', 'hero.play', 'swarm.', 'chart.'],
+  jsKeys: ['hero.agents', 'hero.opinions_about', 'hero.opinions_exact', 'hero.live', 'hero.pause', 'hero.resume', 'hero.play', 'hero.legend_truth', 'hero.legend_crowd', 'chart.'],
   meta: c => ({ title: c.raw('home.meta_title'), description: c.raw('home.meta_desc') }),
   jsonld: c => [{
     '@context': 'https://schema.org', '@type': 'WebSite', '@id': `${c.abs(c.url(''))}#website`,

@@ -9,7 +9,8 @@ $('#scrollCue').addEventListener('click',()=>{const el=$('#ceiling');if(el)el.sc
 /* ====================== HERO: N_eff demo driving the 3D swarm ====================== */
 const sim={N:1000,rho:0.25,paused:false};
 const cv=$('#swarm'),fallback=$('#swarmFallback'),pauseBtn=$('#pauseBtn');
-const LABELS={truth:t('swarm.truth'),crowd:t('swarm.crowd')};
+/* the overlay names its markers exactly as the panel legend does */
+const LABELS={truth:t('hero.legend_truth'),crowd:t('hero.legend_crowd')};
 /* Where and how big the swarm should be: the centre of the empty .swarm-window as 0..1 of the
    hero box (the canvas fills the hero, so this is also the canvas CSS box), plus a radius as a
    fraction of the canvas height that the cloud's outer extent must fit in. Returns [x, y, radius]. */

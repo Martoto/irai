@@ -250,7 +250,9 @@ main{display:block;min-height:72vh}
 .band{padding:clamp(72px,10vw,150px) 0;border-top:1px solid var(--line);position:relative}
 .band.tight{padding:clamp(56px,7vw,104px) 0}
 .band.flush{border-top:0;padding-top:0}
-.band h2{max-width:16ch}
+/* a measure in ch never cuts a word: js/site.js sets --word to the heading's longest word (after shrinking the
+   font until that word fits the column) and the measure grows to it */
+.band h2{max-width:max(16ch,var(--word,0px))}
 .col-a h2,.col-b > h2{font-size:clamp(2rem,4vw,4rem)}
 .band p{max-width:62ch}
 .stack > p:not(.ui){color:var(--text-2)}
@@ -265,7 +267,7 @@ main{display:block;min-height:72vh}
 .cite{color:var(--muted);font-size:12px;border-top:1px solid var(--line);padding-top:14px}
 .cite a{color:var(--text)}
 .page-head{padding-top:calc(var(--head) + clamp(56px,9vw,120px));padding-bottom:clamp(40px,6vw,80px);display:flex;flex-direction:column;gap:clamp(18px,2.6vw,30px)}
-.page-head h1{max-width:100%;overflow-wrap:anywhere;hyphens:manual}
+.page-head h1{max-width:100%}
 .page-head .lede{font-size:clamp(1.15rem,1.6vw,1.4rem);line-height:1.5;color:var(--text-2);border-left:2px solid var(--honey);padding-left:18px}
 
 /* ceiling chart */
@@ -372,7 +374,7 @@ main{display:block;min-height:72vh}
 .article .back{color:var(--honey);text-decoration:none;align-self:flex-start;margin-bottom:24px}
 .article .back::before{content:"← "}
 .article .back:hover{text-decoration:underline}
-.article h1{font-size:clamp(2.4rem,6.4vw,6.2rem);margin:14px 0 18px;max-width:18ch;overflow-wrap:break-word}
+.article h1{font-size:clamp(2.4rem,6.4vw,6.2rem);margin:14px 0 18px;max-width:max(18ch,var(--word,0px))}
 .article .by{font-family:var(--mono);font-size:12.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-bottom:40px;padding-bottom:16px;border-bottom:1px solid var(--line)}
 .article .body{display:flex;flex-direction:column;gap:20px;font-size:1.2rem;line-height:1.65;max-width:62ch}
 .article .body h2{font-size:clamp(1.4rem,2.4vw,2rem);margin-top:22px}
@@ -455,8 +457,9 @@ body[data-view="home"] .foot{margin-top:0}
 @media (max-width:520px){body{font-size:1.0625rem}}
 
 /* ---------- languages ---------- */
-/* long words (German compounds above all) break, with a hyphen where the browser knows the language, instead of overflowing */
-html:not([lang="en"]) :is(h1,h2,h3,h4,.slogan,.claim){overflow-wrap:anywhere;hyphens:auto}
+/* display headings never break inside a word except at a real hyphenation point, which shows a hyphen;
+   js/site.js sizes them so the longest word fits, so hyphenation is only taken for long words (compounds) */
+html:not([lang="en"]) :is(h1,h2,h3,h4,.slogan,.claim){hyphens:auto;hyphenate-limit-chars:12 5 5}
 /* Chinese and Japanese: Noto Sans for text and display (loaded only on those pages), JetBrains Mono kept for Latin UI;
    no uppercase, no negative tracking, taller lines and smaller display sizes */
 html:lang(zh-Hans){--cjk:"Noto Sans SC"}

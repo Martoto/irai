@@ -16,8 +16,10 @@ const PAPERS = [
 ];
 
 function paper(c, p) {
+  /* original paper titles are English on every version of the page */
+  const en = p.title && c.loc.code !== 'en' ? ' lang="en"' : '';
   const title = p.title || c.t(`${p.key}.h`);
-  return `<div class="item"><div class="meta"><span class="chip${p.chip ? ' ' + p.chip : ''}">${c.t(`research.chip.${p.status}`)}</span></div><div><h3 class="item-h">${title}</h3><p>${c.t(`${p.key}.p`)}</p>${p.sub ? `<div class="sub">${p.sub(c)}</div>` : ''}</div></div>`;
+  return `<div class="item"><div class="meta"><span class="chip${p.chip ? ' ' + p.chip : ''}">${c.t(`research.chip.${p.status}`)}</span></div><div><h3 class="item-h"${en}>${title}</h3><p>${c.t(`${p.key}.p`)}</p>${p.sub ? `<div class="sub">${p.sub(c)}</div>` : ''}</div></div>`;
 }
 
 export default {

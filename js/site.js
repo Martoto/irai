@@ -74,6 +74,39 @@ function preferredLocale(){
   document.body.append(bar);
 })();
 
+/* ---- display headings: shrink one just enough that its longest word fits the column, so a word is never
+   split (long German compounds on phones). Words are measured in the heading's own font; CJK runs may break
+   between characters, and a break after a hyphen or dash is a real one, so neither counts as a word. ---- */
+const FIT='.hero .slogan,.hero .claim,main :is(h1,h2,h3,h4):not(#heroH)';
+const CJK=/[\u2E80-\u9FFF\uAC00-\uD7AF\uF900-\uFAFF\uFF00-\uFFEF]+/;
+const words=text=>text.split(/\s+/).flatMap(w=>w.split(CJK)).flatMap(w=>w.split(/(?<=[-\u2010-\u2014\/\u00AD])/)).filter(Boolean);
+const contentWidth=el=>{const cs=getComputedStyle(el);return el.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight);};
+function fitHeadings(){
+  const els=window.IRAI.$$(FIT).filter(el=>el.getClientRects().length);
+  for(const el of els){el.style.fontSize='';el.style.removeProperty('--word');}
+  for(const el of els){
+    const ws=words(el.textContent);if(!ws.length)continue;
+    const probe=document.createElement('span');
+    probe.style.cssText='position:absolute;left:0;top:0;visibility:hidden;white-space:nowrap;pointer-events:none';
+    el.append(probe);
+    let w=0;for(const x of ws){probe.textContent=x;w=Math.max(w,probe.getBoundingClientRect().width);}
+    probe.remove();
+    /* the space is the heading's column, not its ch-based measure (.band h2, .article h1); a heading that is
+       sized to its content can still be wider than its parent, so the parent bounds it too */
+    el.style.maxWidth='none';
+    const avail=Math.min(contentWidth(el),contentWidth(el.parentElement));
+    el.style.maxWidth='';
+    if(avail>0&&w>avail){const k=avail/w*0.98;el.style.fontSize=(parseFloat(getComputedStyle(el).fontSize)*k).toFixed(2)+'px';w*=k;}
+    /* lets a ch-based max-width grow to the longest word (see .band h2) */
+    el.style.setProperty('--word',Math.ceil(w)+'px');
+  }
+}
+let fitQueued=false;
+const queueFit=()=>{if(!fitQueued){fitQueued=true;requestAnimationFrame(()=>{fitQueued=false;fitHeadings();});}};
+fitHeadings();
+window.addEventListener('resize',queueFit);
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fitHeadings);
+
 /* ---- footer door: open 06:00–18:00 in São Paulo ---- */
 const hourFmt=new Intl.DateTimeFormat('en-GB',{timeZone:'America/Sao_Paulo',hour:'2-digit',hourCycle:'h23'});
 const door=$('#door');

@@ -33,7 +33,7 @@ export default {
     <div class="body">
 ${c.postBody(p.slug)}
     </div>
-    <div class="refs"><h2 class="refs-h">${c.t('post.sources')}</h2><ul>${p.refs.map(r => `<li>${c.esc(r)}</li>`).join('')}</ul></div>
+    <div class="refs"><h2 class="refs-h">${c.t('post.sources')}</h2><ul${c.loc.code !== 'en' ? ' lang="en"' : ''}>${p.refs.map(r => `<li>${c.esc(r)}</li>`).join('')}</ul></div>
     <div class="after"><a class="btn btn-ghost" href="${c.url(`blog/${next.slug}/`)}">${c.t('post.next', { title: c.t(`post.${next.slug}.title`) })}</a></div>
   </article>
 </div>`;
