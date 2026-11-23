@@ -1,10 +1,13 @@
 /*!
  * IRAI hero swarm — "Swarms of societies of swarms."
- * WebGL2 GPGPU particle swarm, cursor-driven fluid, HD ASCII phosphor post-process.
+ * WebGL2 GPGPU particle swarm, cursor-driven fluid, calm ASCII phosphor post-process, and a crisp vector
+ * overlay (truth crosshair, crowd-average ring, error vector, agent dots, labels) drawn at device resolution.
  * Classic script. Requires three.js r150 (global THREE). Exposes window.IraiSwarm:
- *   IraiSwarm.create(canvas, { rho = 0.25, agents = 1000, reducedMotion, focus = [0.5, 0.5], radius = 0.42 })
+ *   IraiSwarm.create(canvas, { rho = 0.25, agents = 1000, reducedMotion, focus = [0.5, 0.5], radius = 0.42,
+ *                              labels = { truth: 'truth', crowd: 'crowd average' } })
  *     -> controller | null
- *   controller.setRho(0..0.95), setAgents(10|100|1000), setFocus(x, y[, radius]), pause(), resume(), destroy()
+ *   controller.setRho(0..0.95), setAgents(10|100|1000), setFocus(x, y[, radius]), setLabels({ truth, crowd }),
+ *     refreshLabels() (re-rasterise after web fonts load), pause(), resume(), destroy()
  *   focus: fractions of the canvas CSS box (from top-left) where the global centroid appears.
  *   radius: fraction of the canvas CSS height the swarm's ~95th-percentile extent fits within at every rho
  *     (low rho fills it, monoculture clumps to about half); density fades softly past it.
@@ -13,14 +16,11 @@
   'use strict';
 
   var MAX_AGENTS = 1000;
-  var RAMP = " .'`^\",:;Il!i><~+_-?][}{1)(|/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$";
-  var BLOCKS = ['\u2591', '\u2592', '\u2593', '\u2588']; // ░▒▓█
-  var SPECIAL = ['\u2500', '\u2502', '\u253C', '\u2571', '\u2572', '\u25C6', '\u00B7', '\u00D7']; // ─│┼╱╲◆·×
-  var ALNUM = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  var PROCEDURAL = '\u2591\u2592\u2593\u2588\u2500\u2502\u253C\u2571\u2572\u25C6';
+  var RAMP = ' .\u00B7:+*#%@';           // calm glyph ramp ( .·:+*#%@), ascending ink
   var FONT = '"JetBrains Mono","IBM Plex Mono","SFMono-Regular",Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace';
-  var TILE_W = 48, TILE_H = 72, ATLAS_COLS = 16;
-  var LABEL_T = 'TRUTH', LABEL_C = 'CROWD';
+  var LABEL_FONT = '"JetBrains Mono", ui-monospace, "Noto Sans SC", "Noto Sans JP", sans-serif';
+  var TILE_W = 48, TILE_H = 72;
+  var DEFAULT_LABELS = { truth: 'truth', crowd: 'crowd average' };
 
   // ---------------------------------------------------------------- shaders
   var HEAD = 'precision highp float;\nprecision highp int;\nprecision highp sampler2D;\n';
@@ -221,16 +221,23 @@
   ].join('\n');
 
   var MEAN_FRAG = FRAG_HEAD + [
-    // crowd estimate = mean of agent positions + shared (correlated) error, eased over time
-    'uniform sampler2D uPos, uAgents, uPrev; uniform int uN; uniform vec3 uErr; uniform float uBlend;',
+    // crowd estimate = mean of agent positions + shared (correlated) error, eased over time;
+    // w = eased side of the crowd relative to the truth on screen (-1 left, +1 right), with hysteresis,
+    // so the overlay labels sit on the outer sides without flickering
+    'uniform sampler2D uPos, uAgents, uPrev; uniform int uN; uniform vec3 uErr; uniform float uBlend, uSideBlend, uHyst;',
+    'uniform mat4 uViewProj;',
     'void main(){',
     '  vec3 s = vec3(0.0);',
     '  for (int i = 0; i < ' + MAX_AGENTS + '; i++) {',
     '    if (i >= uN) break;',
     '    s += texelFetch(uPos, ivec2(texelFetch(uAgents, ivec2(i, 0), 0).xy), 0).xyz;',
     '  }',
-    '  vec3 cur = s / float(max(uN, 1)) + uErr;',
-    '  O = vec4(mix(texelFetch(uPrev, ivec2(0), 0).xyz, cur, uBlend), 1.0);',
+    '  vec4 prev = texelFetch(uPrev, ivec2(0), 0);',
+    '  vec3 m = mix(prev.xyz, s / float(max(uN, 1)) + uErr, uBlend);',
+    '  vec4 c = uViewProj * vec4(m, 1.0), t = uViewProj * vec4(0.0, 0.0, 0.0, 1.0);',
+    '  float dx = c.x / max(c.w, 1e-3) - t.x / max(t.w, 1e-3);',
+    '  float side = dx > uHyst ? 1.0 : (dx < -uHyst ? -1.0 : (prev.w < 0.0 ? -1.0 : 1.0));',
+    '  O = vec4(m, mix(prev.w, side, uSideBlend));',
     '}'
   ].join('\n');
 
@@ -249,95 +256,22 @@
     'in float position;',
     'uniform mat4 modelViewMatrix, projectionMatrix;',
     'uniform sampler2D uPos, uVel, uInfo; uniform int uSize;',
-    'uniform float uPointScale, uIntensity, uTime;',
-    'uniform vec3 uHoney, uHoneyDeep, uHot, uLav;',
+    'uniform float uPointScale, uIntensity;',
+    'uniform vec3 uColor;',
     'out vec3 vColor;',
     'void main(){',
     '  ivec2 ij = ivec2(gl_VertexID % uSize, gl_VertexID / uSize);',
-    '  vec3 p = texelFetch(uPos, ij, 0).xyz; vec4 V = texelFetch(uVel, ij, 0); vec4 I = texelFetch(uInfo, ij, 0);',
+    '  vec3 p = texelFetch(uPos, ij, 0).xyz; vec4 V = texelFetch(uVel, ij, 0);',
+    '  float r = texelFetch(uInfo, ij, 0).w;',
     '  vec4 mv = modelViewMatrix * vec4(p, 1.0);',
     '  gl_Position = projectionMatrix * mv;',
-    '  float r = I.w;',
     '  float sz = uPointScale * (0.6 + 1.1 * fract(r * 91.7)) / max(-mv.z, 0.1);',
-    '  float k = fract(r * 53.3);',
-    '  vec3 col = k < 0.16 ? uHot : (k < 0.5 ? uHoneyDeep : uHoney);',
-    '  float tw = 0.0;',
-    '  if (fract(r * 17.1) < 0.03) {',
-    '    tw = pow(0.5 + 0.5 * sin(uTime * (1.5 + r * 4.0) + r * 60.0), 5.0);',
-    '    col = uLav; sz *= 1.3 + 1.2 * tw;',
-    '  }',
-    '  float inten = uIntensity * (0.75 + 0.2 * min(length(V.xyz), 3.0) + 2.0 * V.w + 2.5 * tw + (tw > 0.0 ? 0.6 : 0.0));',
+    // pushed particles (fluid excitation) glow brighter, so the cursor wake reads in the ASCII
+    '  float inten = uIntensity * (0.75 + 0.2 * min(length(V.xyz), 3.0) + 2.0 * V.w);',
     '  vec2 ro = role(r);',
     '  inten *= ro.x > 0.5 ? 1.1 : (ro.y > 0.0 ? 1.6 - 0.9 * ro.y : 1.5);',
-    '  vColor = col * inten;',
+    '  vColor = uColor * inten;',
     '  gl_PointSize = clamp(sz, 1.0, 10.0);',
-    '}'
-  ].join('\n');
-
-  // per-cell screen flow of the particles, one pixel per ASCII cell: xy = summed unit direction of trail
-  // particles, z = trail particles, a = all particles
-  var FLOW_VERT = HEAD + ROLE + '\n' + [
-    'in float position;',
-    'uniform mat4 modelViewMatrix, projectionMatrix;',
-    'uniform sampler2D uPos, uVel, uInfo; uniform int uSize; uniform vec2 uScale, uScreen;',
-    'out vec3 vColor;',
-    'void main(){',
-    '  ivec2 ij = ivec2(gl_VertexID % uSize, gl_VertexID / uSize);',
-    '  vec3 p = texelFetch(uPos, ij, 0).xyz, v = texelFetch(uVel, ij, 0).xyz;',
-    '  mat4 pm = projectionMatrix * modelViewMatrix;',
-    '  vec4 a = pm * vec4(p, 1.0), b = pm * vec4(p + v * 0.05, 1.0);',
-    '  vec2 d = (b.xy / b.w - a.xy / a.w) * uScreen;',
-    '  float s = length(d);',
-    '  vColor = vec3(d / max(s, 1e-6), 1.0) * smoothstep(0.2, 1.0, s) * step(0.05, role(texelFetch(uInfo, ij, 0).w).y);',
-    '  gl_Position = vec4(((a.xy / a.w * 0.5 + 0.5) * uScale * 2.0 - 1.0) * a.w, 0.0, a.w);',
-    '  gl_PointSize = 1.0;',
-    '}'
-  ].join('\n');
-  var FLAT_FRAG = FRAG_HEAD + 'in vec3 vColor; void main(){ O = vec4(vColor, 1.0); }';
-
-  var AGENT_VERT = HEAD + [
-    'in float position;',
-    'uniform mat4 modelViewMatrix, projectionMatrix;',
-    'uniform sampler2D uPos, uAgents;',
-    'uniform float uPointScale, uIntensity, uMarkScaleX, uMarkScaleY, uTime;',
-    'uniform vec3 uColor; uniform int uMarks;',
-    'out vec3 vColor;',
-    'void main(){',
-    '  vec2 t = texelFetch(uAgents, ivec2(gl_VertexID, 0), 0).xy;',
-    '  vec3 p = texelFetch(uPos, ivec2(t), 0).xyz;',
-    '  vec4 mv = modelViewMatrix * vec4(p, 1.0);',
-    '  vec4 clip = projectionMatrix * mv;',
-    '  if (uMarks == 1) {',
-    '    clip.xy = ((clip.xy / clip.w * 0.5 + 0.5) * vec2(uMarkScaleX, uMarkScaleY) * 2.0 - 1.0) * clip.w;',
-    '    gl_PointSize = 1.0; vColor = vec3(1.0);',
-    '  } else {',
-    '    gl_PointSize = max(uPointScale / max(-mv.z, 0.1), 2.0);',
-    '    float pulse = 0.8 + 0.2 * sin(uTime * 2.0 + float(gl_VertexID) * 0.77);',
-    '    vColor = uColor * uIntensity * pulse;',
-    '  }',
-    '  gl_Position = clip;',
-    '}'
-  ].join('\n');
-
-  var LINK_VERT = HEAD + [
-    'in float position;',
-    'uniform mat4 modelViewMatrix, projectionMatrix;',
-    'uniform sampler2D uLinks; uniform int uPer;',
-    'uniform float uPointScale, uIntensity, uTime;',
-    'uniform vec3 uColor, uLav;',
-    'out vec3 vColor;',
-    'void main(){',
-    '  int li = gl_VertexID / uPer; float t = (float(gl_VertexID % uPer) + 0.5) / float(uPer);',
-    '  vec4 A = texelFetch(uLinks, ivec2(li, 0), 0), B = texelFetch(uLinks, ivec2(li, 1), 0);',
-    '  vec3 p = mix(A.xyz, B.xyz, t);',
-    '  vec4 mv = modelViewMatrix * vec4(p, 1.0);',
-    '  gl_Position = projectionMatrix * mv;',
-    '  float h = fract(sin(float(li) * 12.9898) * 43758.5453);',
-    '  float pk = fract(t - uTime * (0.18 + 0.2 * h) + h);',
-    '  float pulse = smoothstep(0.86, 1.0, pk);',
-    '  gl_PointSize = max(uPointScale * (1.0 + 1.5 * pulse) / max(-mv.z, 0.1), 1.0);',
-    '  float ends = smoothstep(0.0, 0.2, t) * smoothstep(1.0, 0.8, t);',
-    '  vColor = mix(uColor, uLav, B.w * pulse) * uIntensity * A.w * ends * (0.4 + 1.4 * pulse);',
     '}'
   ].join('\n');
 
@@ -372,124 +306,121 @@
     '}'
   ].join('\n');
 
-  function asciiFrag(g) {
-    return FRAG_HEAD + [
-      'uniform sampler2D uCells, uMarks, uAtlas, uBloom, uMean, uFlow;',
-      'uniform mat4 uViewProj;',
-      'uniform vec2 uCellPx, uScreen, uGrid, uAtlasGrid, uTruth;',
-      'uniform float uRampN, uTime, uGlitch, uBloomAmt, uExposure, uRingR, uPR, uAgentGlyph, uFadeR;',
-      'uniform int uLabelT[8], uLabelC[8];',
-      'uniform vec3 uAmber, uHot, uLav, uCer, uBg, uHoney;',
-      'float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }',
-      'void main(){',
-      '  vec2 fc = gl_FragCoord.xy;',
-      '  vec2 cf = fc / uCellPx;',
-      '  ivec2 cell = ivec2(floor(cf));',
-      '  vec2 local = cf - floor(cf);',
-      '  ivec2 src = cell;',
-      '  float tq = floor(uTime * 14.0);',
-      '  bool glitchBand = false;',
-      '  if (uGlitch > 0.0 && hash(vec2(tq, 7.0)) < 0.035) {',
-      '    float row = floor(hash(vec2(tq, 3.0)) * uGrid.y);',
-      '    if (abs(float(cell.y) - row) < 1.5) { src.x += int((hash(vec2(tq, 9.0)) - 0.5) * 14.0); glitchBand = true; }',
-      '  }',
-      '  src = clamp(src, ivec2(0), ivec2(uGrid) - 1);',
-      '  vec4 C = texelFetch(uCells, src, 0);',
-      // part peak, part mean: thin orbit streams register as glyph trails, not just filled clumps
-      '  float lum = mix(dot(C.rgb, vec3(0.3, 0.5, 0.2)), C.a, 0.3);',
-      // soft density falloff toward the framing radius around the global centroid
-      '  float fade = 1.0 - smoothstep(0.85, 1.15, length((vec2(cell) + 0.5) * uCellPx - uTruth) / uFadeR);',
-      '  lum *= fade;',
-      '  float L = 1.0 - exp(-lum * uExposure);',
-      '  int g = 0;',
-      // text ramp from L=0.1 (sparser haze stays blank, so clumps and streams read) up to L=0.92;
-      // block shades (L>0.95) only where the whole neighbourhood (bloom) is dense too
-      '  float nb = fade * dot(texture(uBloom, (vec2(src) + 0.5) * uCellPx / uScreen).rgb, vec3(0.3, 0.5, 0.2));',
-      '  float Ln = 1.0 - exp(-nb * uExposure);',
-      '  float textN = uRampN - ' + BLOCKS.length + '.0;',
-      '  if (L > 0.1) {',
-      '    float Lb = min(L, Ln);',
-      '    if (Lb < 0.95) g = 1 + int(pow((min(L, 0.92) - 0.1) / 0.82, 0.85) * (textN - 1.001));',
-      '    else g = int(textN) + min(int((Lb - 0.95) / 0.012), ' + (BLOCKS.length - 1) + ');',
-      '  }',
-      '  float mc = max(max(C.r, C.g), C.b);',
-      '  vec3 hue = mc > 1e-5 ? C.rgb / mc : uAmber;',
-      '  float lav = smoothstep(0.02, 0.3, hue.b - hue.r);',
-      '  vec3 tint = mix(mix(hue, uAmber, 0.6), uLav * 1.15, lav);',
-      '  tint = mix(tint, uHot, smoothstep(0.7, 1.0, L) * 0.55);',
-      '  vec3 col = tint * (0.3 + 0.9 * L);',
-      '  if (glitchBand) col *= vec3(0.75, 0.85, 1.25);',
-      '  if (uGlitch > 0.0 && L > 0.05 && hash(vec2(cell) + tq * 1.37) < 0.0012) {',
-      '    g = 1 + int(hash(vec2(cell) * 1.7 + tq) * (textN - 2.0));',
-      '    col = hash(vec2(cell) - tq) < 0.5 ? uLav * 1.3 : uHot;',
-      '  }',
-      // orbit streams: text cells dominated by coherently moving trail particles draw a stroke along the flow
-      '  vec4 Fl = texelFetch(uFlow, src, 0);',
-      '  if (g > 0 && g < int(textN) && L < 0.8 && Fl.z > 2.0 && Fl.z > 0.45 * Fl.a && length(Fl.xy) > 0.85 * Fl.z) {',
-      '    float a = mod(atan(Fl.y, Fl.x), 3.14159265);',
-      '    g = a < 0.49 || a > 2.65 ? ' + g.h + ' : (a < 1.27 ? ' + g.fwd + ' : (a < 1.87 ? ' + g.v + ' : ' + g.back + '));',
-      '  }',
-      // --- markers (cell-space overlays rendered as glyphs)
-      '  vec2 cc = (vec2(cell) + 0.5) * uCellPx;',
-      // agents: diamonds in sparse cells for small crowds; a 1000-agent crowd lights its cells honey instead
-      '  if (fade > 0.3 && texelFetch(uMarks, cell, 0).r > 0.0) {',
-      '    if (uAgentGlyph > 0.5 && L < 0.55) { g = ' + g.agent + '; col = uHoney * 1.3; }',
-      '    else { g = max(g, 2); col = mix(uHoney, uHot, 0.45) * 1.35; }',
-      '  }',
-      '  vec4 mc4 = uViewProj * vec4(texelFetch(uMean, ivec2(0), 0).xyz, 1.0);',
-      '  vec2 crowd = mc4.w > 0.01 ? (mc4.xy / mc4.w * 0.5 + 0.5) * uScreen : vec2(-1e4);',
-      '  ivec2 tc = ivec2(floor(uTruth / uCellPx)), kc = ivec2(floor(crowd / uCellPx));',
-      // error vector: dotted line truth -> crowd
-      '  vec2 ab = crowd - uTruth; float abl = length(ab);',
-      '  if (abl > uRingR * 1.05) {',
-      '    vec2 pa = cc - uTruth; float h = clamp(dot(pa, ab) / (abl * abl), 0.0, 1.0);',
-      '    vec2 adx = abs(pa - ab * h) / uCellPx;',
-      '    if (adx.x < 0.5 && adx.y < 0.5 && length(cc - crowd) > uRingR && length(cc - uTruth) > 2.5 * uCellPx.x) { g = ' + g.dot + '; col = uCer * 1.6; }',
-      '  }',
-      // crowd ring: one glyph per sampled point, oriented along the tangent
-      '  if (length(cc - crowd) < uRingR + uCellPx.y) {',
-      '    for (int k = 0; k < 28; k++) {',
-      '      float a = (float(k) + 0.5) * 0.2243994753;',
-      '      vec2 n = vec2(cos(a), sin(a));',
-      '      if (ivec2(floor((crowd + n * uRingR) / uCellPx)) == cell) {',
-      '        g = abs(n.x) > 0.93 ? ' + g.v + ' : (abs(n.y) > 0.93 ? ' + g.h + ' : (n.x * n.y > 0.0 ? ' + g.back + ' : ' + g.fwd + '));',
-      '        col = uLav * 1.5;',
-      '      }',
-      '    }',
-      '  }',
-      '  if (cell == kc) { g = ' + g.times + '; col = uLav * 1.6; }',
-      // truth reticle
-      '  ivec2 dt = cell - tc;',
-      '  if (dt.y == 0 && abs(dt.x) >= 1 && abs(dt.x) <= 2) { g = ' + g.h + '; col = uHot * 1.3; }',
-      '  if (dt.x == 0 && abs(dt.y) == 1) { g = ' + g.v + '; col = uHot * 1.3; }',
-      '  if (dt == ivec2(0)) { g = ' + g.cross + '; col = uHot * 1.5; }',
-      // labels sit on the outer sides so they never collide
-      '  bool crowdLeft = crowd.x < uTruth.x;',
-      '  int li = cell.x - (crowdLeft ? tc.x + 4 : tc.x - 3 - ' + g.lenT + ');',
-      '  if (cell.y == tc.y && li >= 0 && li < ' + g.lenT + ') { g = uLabelT[li]; col = uHot * 1.2; }',
-      '  int rc = int(ceil(uRingR / uCellPx.x));',
-      '  li = cell.x - (crowdLeft ? kc.x - rc - 1 - ' + g.lenC + ' : kc.x + rc + 2);',
-      '  if (cell.y == kc.y && li >= 0 && li < ' + g.lenC + ') { g = uLabelC[li]; col = uLav * 1.5; }',
-      // glyph lookup
-      '  float m = 0.0;',
-      '  if (g > 0) {',
-      '    vec2 gc = vec2(float(g % int(uAtlasGrid.x)), float(g / int(uAtlasGrid.x)));',
-      '    vec2 l = clamp(local, 0.015, 0.985);',
-      '    vec2 auv = (gc + vec2(l.x, 1.0 - l.y)) / uAtlasGrid;',
-      '    vec2 gx = vec2(1.0 / (uCellPx.x * uAtlasGrid.x), 0.0), gy = vec2(0.0, 1.0 / (uCellPx.y * uAtlasGrid.y));',
-      '    m = textureGrad(uAtlas, auv, gx, gy).r;',
-      '  }',
-      '  vec3 bl = texture(uBloom, fc / uScreen).rgb * (1.0 - smoothstep(0.8, 1.2, length(fc - uTruth) / uFadeR));',
-      '  float bll = dot(bl, vec3(0.3, 0.5, 0.2));',
-      '  bl = bl / (1.0 + bl);',
-      '  vec3 outc = mix(bl, bll / (1.0 + bll) * uAmber, 0.5) * uBloomAmt + col * m;',
-      '  outc *= 0.95 + 0.05 * sin(fc.y * 3.14159265 / uPR);',
-      '  vec2 uv = fc / uScreen - 0.5; uv.x *= uScreen.x / uScreen.y;',
-      '  outc = uBg + outc * mix(0.55, 1.0, smoothstep(1.15, 0.3, length(uv)));',
-      '  O = vec4(outc, 1.0);',
-      '}'
-    ].join('\n');
-  }
+  // the swarm body: one glyph per cell from a short ramp, glyph and brightness stepping together
+  var ASCII_FRAG = FRAG_HEAD + [
+    'uniform sampler2D uCells, uAtlas, uBloom;',
+    'uniform vec2 uCellPx, uScreen, uTruth;',
+    'uniform float uRampN, uBloomAmt, uExposure, uFadeR;',
+    'uniform vec3 uDim, uHoney, uHot, uBg;',
+    'void main(){',
+    '  vec2 fc = gl_FragCoord.xy, cf = fc / uCellPx;',
+    '  ivec2 cell = ivec2(floor(cf));',
+    '  vec2 local = cf - floor(cf);',
+    '  vec4 C = texelFetch(uCells, cell, 0);',
+    // part peak, part mean: thin orbit streams still register, not just filled clumps
+    '  float lum = mix(dot(C.rgb, vec3(0.3, 0.5, 0.2)), C.a, 0.3);',
+    // soft density falloff toward the framing radius around the global centroid
+    '  lum *= 1.0 - smoothstep(0.85, 1.15, length((vec2(cell) + 0.5) * uCellPx - uTruth) / uFadeR);',
+    '  float L = 1.0 - exp(-lum * uExposure);',
+    // sparse haze below the first level stays blank so the swarm keeps its shape
+    '  int g = L > 0.12 ? 1 + int(clamp((L - 0.12) / 0.8, 0.0, 1.0) * (uRampN - 1.001)) : 0;',
+    '  float t = float(g) / (uRampN - 1.0);',
+    '  vec3 col = mix(uDim, uHoney, smoothstep(0.0, 0.8, t));',
+    '  col = mix(col, uHot, 0.3 * smoothstep(0.75, 1.0, t));',
+    '  float m = 0.0;',
+    '  if (g > 0) {',
+    '    vec2 l = clamp(local, 0.015, 0.985);',
+    '    vec2 auv = vec2((float(g) + l.x) / uRampN, 1.0 - l.y);',
+    '    m = textureGrad(uAtlas, auv, vec2(1.0 / (uCellPx.x * uRampN), 0.0), vec2(0.0, 1.0 / uCellPx.y)).r;',
+    '  }',
+    '  vec3 bl = texture(uBloom, fc / uScreen).rgb * (1.0 - smoothstep(0.8, 1.2, length(fc - uTruth) / uFadeR));',
+    '  vec3 outc = bl / (1.0 + bl) * uBloomAmt + col * m;',
+    '  vec2 uv = fc / uScreen - 0.5; uv.x *= uScreen.x / uScreen.y;',
+    '  O = vec4(uBg + outc * mix(0.55, 1.0, smoothstep(1.15, 0.3, length(uv))), 1.0);',
+    '}'
+  ].join('\n');
+
+  // --- vector overlay: one instanced quad per mark, positioned from the GPU state (no readback).
+  // Instance 0 = error vector, 1..N = agents, then crowd ring, truth crosshair, truth label, crowd label.
+  var OVERLAY_VERT = HEAD + [
+    'in vec2 position; in float aId;',
+    'uniform sampler2D uPos, uAgents, uMean;',
+    'uniform mat4 uViewProj;',
+    'uniform vec2 uScreen, uLabSizeT, uLabSizeC;',
+    'uniform vec4 uLabUvT, uLabUvC;',
+    'uniform float uPR, uN, uDotR, uDotA, uFadeR, uArm, uRingR;',
+    'out vec2 vP, vUv; out float vLen, vA; flat out int vKind;',
+    'vec2 scr(vec3 p){ vec4 c = uViewProj * vec4(p, 1.0); return (c.xy / max(c.w, 1e-3) * 0.5 + 0.5) * uScreen; }',
+    'void main(){',
+    '  int id = int(aId + 0.5), n = int(uN + 0.5), kind;',
+    '  vec2 truth = scr(vec3(0.0));',
+    '  vec4 M = texelFetch(uMean, ivec2(0), 0);',
+    '  vec2 crowd = scr(M.xyz);',
+    '  float side = clamp(M.w, -1.0, 1.0), pad = 3.0 * uPR, gap = 6.0 * uPR;',
+    '  vec2 c, h, ax = vec2(1.0, 0.0);',
+    '  vA = 1.0; vLen = 0.0; vUv = vec2(0.0);',
+    '  if (id == 0) {',
+    '    kind = 3;',
+    '    vec2 d = crowd - truth; vLen = length(d);',
+    '    if (vLen > 1e-3) ax = d / vLen;',
+    '    c = 0.5 * (truth + crowd); h = vec2(0.5 * vLen, pad);',
+    '  } else if (id <= n) {',
+    '    kind = 0;',
+    '    c = scr(texelFetch(uPos, ivec2(texelFetch(uAgents, ivec2(id - 1, 0), 0).xy), 0).xyz);',
+    '    h = vec2(uDotR + pad);',
+    '    vA = uDotA * mix(0.35, 1.0, 1.0 - smoothstep(0.9, 1.25, length(c - truth) / uFadeR));',
+    '  } else if (id == n + 1) {',
+    '    kind = 2; c = crowd; h = vec2(uRingR + pad);',
+    '  } else if (id == n + 2) {',
+    '    kind = 1; c = truth; h = vec2(uArm + pad);',
+    '  } else {',
+    // labels on the outer sides (truth away from the crowd, crowd beyond its ring); while the crowd
+    // crosses over the truth they swing round below/above instead of sliding through the marks
+    '    bool isT = id == n + 3;',
+    '    kind = isT ? 4 : 5;',
+    '    vec2 sz = isT ? uLabSizeT : uLabSizeC;',
+    '    float lift = 1.0 - abs(side);',
+    '    c = isT ? truth + vec2(-side * (uArm + gap + 0.5 * sz.x), -lift * (uArm + gap + 0.5 * sz.y))',
+    '            : crowd + vec2(side * (uRingR + gap + 0.5 * sz.x), lift * (uRingR + gap + 0.5 * sz.y));',
+    '    c.x = clamp(c.x, 0.5 * sz.x + gap, uScreen.x - 0.5 * sz.x - gap);',
+    '    c = floor(c - 0.5 * sz + 0.5) + 0.5 * sz;',
+    '    h = 0.5 * sz;',
+    '    vec4 r = isT ? uLabUvT : uLabUvC;',
+    '    vUv = vec2(mix(r.x, r.z, position.x * 0.5 + 0.5), mix(r.w, r.y, position.y * 0.5 + 0.5));',
+    '  }',
+    '  vKind = kind;',
+    '  vP = position * h;',
+    '  vec2 px = c + ax * vP.x + vec2(-ax.y, ax.x) * vP.y;',
+    '  gl_Position = vec4(px / uScreen * 2.0 - 1.0, 0.0, 1.0);',
+    '}'
+  ].join('\n');
+
+  // anti-aliased SDF marks with a thin dark halo so they separate from the glyphs; premultiplied output
+  var OVERLAY_FRAG = FRAG_HEAD + [
+    'uniform sampler2D uLabels;',
+    'uniform vec3 uInk, uHoney, uBg;',
+    'uniform float uPR, uArm, uRingR, uStroke, uDotR;',
+    'in vec2 vP, vUv; in float vLen, vA; flat in int vKind;',
+    'float box(vec2 p, vec2 b){ vec2 d = abs(p) - b; return length(max(d, 0.0)) + min(max(d.x, d.y), 0.0); }',
+    'void main(){',
+    '  if (vKind >= 4) { O = texture(uLabels, vUv); return; }',
+    '  float d, a = vA, w = 0.5 * uStroke; vec3 col = uInk;',
+    '  if (vKind == 0) { d = length(vP) - uDotR; col = uHoney; }',
+    '  else if (vKind == 1) d = min(box(vP, vec2(uArm, w)), box(vP, vec2(w, uArm)));',
+    '  else if (vKind == 2) d = abs(length(vP) - uRingR) - w;',
+    '  else {',
+    // dashed error vector from the crosshair to the ring, hidden while they overlap
+    '    float s = vP.x + 0.5 * vLen, s0 = uArm + 4.0 * uPR, s1 = vLen - uRingR - 4.0 * uPR;',
+    '    float per = 7.0 * uPR, on = 3.5 * uPR, u = mod(s - s0, per);',
+    '    float dash = u <= on ? max(u - on, -u) : min(u - on, per - u);',
+    '    d = max(max(abs(vP.y) - 0.7 * w, dash), max(s0 - s, s - s1));',
+    '    a *= 0.85 * smoothstep(0.0, 6.0 * uPR, s1 - s0);',
+    '  }',
+    '  float cov = clamp(0.5 - d, 0.0, 1.0);',
+    '  float halo = 0.65 * clamp(0.5 - (d - 1.5 * uPR), 0.0, 1.0);',
+    '  O = a * (vec4(uBg * halo, halo) * (1.0 - cov) + vec4(col, 1.0) * cov);',
+    '}'
+  ].join('\n');
 
   // ---------------------------------------------------------------- helpers
   function mulberry(seed) {
@@ -509,73 +440,48 @@
   }
   function smooth01(x) { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x); }
 
+  // one row of ramp glyphs, white on black, sampled as coverage
   function buildAtlas() {
-    var ramp = RAMP.slice(1).split('');
-    var fontPx = Math.round(TILE_H * 0.74);
-    var font = '600 ' + fontPx + 'px ' + FONT;
-    function draw(ctx, ch, x, y) {
-      var lw = 6, cx = x + TILE_W / 2, cy = y + TILE_H / 2, i, j, q;
-      if (PROCEDURAL.indexOf(ch) < 0) { ctx.fillText(ch, cx, cy + TILE_H * 0.03); return; }
-      if (ch === '\u2588') { ctx.fillRect(x, y, TILE_W, TILE_H); return; }
-      if (ch === '\u2591' || ch === '\u2592' || ch === '\u2593') {
-        var fill = ch === '\u2591' ? 1 : ch === '\u2592' ? 2 : 3;
-        for (j = 0; j < TILE_H; j += 8) {
-          for (i = 0; i < TILE_W; i += 8) {
-            var odd = ((i + j) / 8) & 1;
-            for (q = 0; q < fill; q++) {
-              var k = (q + odd * 2) & 3;
-              ctx.fillRect(x + i + (k & 1) * 4, y + j + (k >> 1) * 4, 4, 4);
-            }
-          }
-        }
-        return;
-      }
-      if (ch === '\u2500' || ch === '\u253C') ctx.fillRect(x, cy - lw / 2, TILE_W, lw);
-      if (ch === '\u2502' || ch === '\u253C') ctx.fillRect(cx - lw / 2, y, lw, TILE_H);
-      if (ch === '\u2571' || ch === '\u2572') {
-        ctx.lineWidth = lw; ctx.beginPath();
-        if (ch === '\u2571') { ctx.moveTo(x, y + TILE_H); ctx.lineTo(x + TILE_W, y); } else { ctx.moveTo(x, y); ctx.lineTo(x + TILE_W, y + TILE_H); }
-        ctx.stroke();
-      }
-      if (ch === '\u25C6') {
-        ctx.beginPath(); ctx.moveTo(cx, cy - TILE_H * 0.2); ctx.lineTo(cx + TILE_W * 0.26, cy);
-        ctx.lineTo(cx, cy + TILE_H * 0.2); ctx.lineTo(cx - TILE_W * 0.26, cy); ctx.closePath(); ctx.fill();
-      }
-    }
-    function prep(ctx) {
-      ctx.fillStyle = '#000'; ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-      ctx.fillStyle = '#fff'; ctx.strokeStyle = '#fff';
-      ctx.font = font; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    }
-    // measure ink coverage of each ramp glyph in this font, sort ascending
-    var meas = document.createElement('canvas');
-    meas.width = TILE_W * ramp.length; meas.height = TILE_H;
-    var mctx = meas.getContext('2d', { willReadFrequently: true });
-    prep(mctx);
-    ramp.forEach(function (ch, i) { draw(mctx, ch, i * TILE_W, 0); });
-    var px = mctx.getImageData(0, 0, meas.width, meas.height).data;
-    var cov = ramp.map(function (ch, i) {
-      var s = 0;
-      for (var y = 0; y < TILE_H; y++) for (var x = 0; x < TILE_W; x++) s += px[(y * meas.width + i * TILE_W + x) * 4];
-      return { ch: ch, c: s, i: i };
-    });
-    cov.sort(function (a, b) { return a.c - b.c || a.i - b.i; });
-    var list = [' '].concat(cov.filter(function (o) { return o.c > 0; }).map(function (o) { return o.ch; }), BLOCKS);
-    var rampN = list.length;
-    list = list.concat(SPECIAL, ALNUM.split(''));
-    var rows = Math.ceil(list.length / ATLAS_COLS);
     var cv = document.createElement('canvas');
-    cv.width = TILE_W * ATLAS_COLS; cv.height = TILE_H * rows;
+    cv.width = TILE_W * RAMP.length; cv.height = TILE_H;
     var ctx = cv.getContext('2d');
-    prep(ctx);
-    list.forEach(function (ch, i) { draw(ctx, ch, (i % ATLAS_COLS) * TILE_W, Math.floor(i / ATLAS_COLS) * TILE_H); });
-    return { canvas: cv, list: list, rampN: rampN, cols: ATLAS_COLS, rows: rows };
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.fillStyle = '#fff';
+    ctx.font = '600 ' + Math.round(TILE_H * 0.74) + 'px ' + FONT;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    for (var i = 1; i < RAMP.length; i++) ctx.fillText(RAMP[i], (i + 0.5) * TILE_W, TILE_H * 0.53);
+    return cv;
   }
 
-  function labelCodes(atlas, text) {
-    var out = new Int32Array(8);
-    for (var i = 0; i < 8 && i < text.length; i++) { var k = atlas.list.indexOf(text[i]); out[i] = k > 0 ? k : 0; }
-    return out;
+  // Truth and crowd labels as two rows of a premultiplied texture at device resolution: light text on a
+  // dark plate so they stay legible over the glyphs. Returns each label's uv rect and size in device px.
+  function drawLabels(cv, labels, pr) {
+    var fontPx = Math.round(11 * pr), padX = Math.round(5 * pr), padY = Math.round(3 * pr);
+    var font = '500 ' + fontPx + 'px ' + LABEL_FONT;
+    var ctx = cv.getContext('2d');
+    var texts = [labels.truth, labels.crowd];
+    ctx.font = font;
+    var ws = texts.map(function (t) { return t ? Math.ceil(ctx.measureText(t).width) + 2 * padX : 0; });
+    var h = fontPx + 2 * padY, rowH = h + 2;
+    cv.width = Math.max(ws[0], ws[1], 1); cv.height = 2 * rowH;
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    ctx.font = font; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    return texts.map(function (t, i) {
+      var y = i * rowH;
+      if (t) {
+        ctx.fillStyle = 'rgba(5,6,10,0.8)'; ctx.fillRect(0, y, ws[i], h);
+        ctx.fillStyle = '#E6E3D8'; ctx.fillText(t, padX, y + h / 2 + 0.06 * fontPx);
+      }
+      return { uv: [0, y / cv.height, ws[i] / cv.width, (y + h) / cv.height], size: [ws[i], t ? h : 0] };
+    });
+  }
+
+  function cleanLabels(l, base) {
+    l = l || {};
+    return {
+      truth: l.truth !== undefined && l.truth !== null ? String(l.truth) : base.truth,
+      crowd: l.crowd !== undefined && l.crowd !== null ? String(l.crowd) : base.crowd
+    };
   }
 
   // Chromium's SwiftShader context is not always reported as a performance caveat, so also
@@ -624,9 +530,6 @@
     var NS = coarse ? 24 : 36;           // societies
     var NSUB = 4;                        // sub-swarms per society
     var NSS = NS * NSUB;
-    var LINKS_PER = 3;                   // 2 nearest neighbours + global centroid
-    var NLINK = NS * LINKS_PER;
-    var LINK_PTS = coarse ? 32 : 72;
     var SIM_RES = 256, DYE_RES = 512;
     var PRESSURE_ITERS = coarse ? 8 : 14;
     var CELL_W = 6, CELL_H = 9;          // CSS px per ASCII cell (scaled by DPR)
@@ -670,8 +573,7 @@
     function v3(hex) { var c = new THREE.Color(hex); return new THREE.Vector3(c.r, c.g, c.b); }
 
     var COL = {
-      honey: v3(0xF2B632), honeyDeep: v3(0xE8A90C), hot: v3(0xFFE7B3), lav: v3(0x8088E8),
-      cer: v3(0xB8482A), bg: v3(0x05060A), amber: v3(0xF2B632)
+      honey: v3(0xF2B632), dim: v3(0x8A6A22), hot: v3(0xFFE7B3), ink: v3(0xE6E3D8), bg: v3(0x05060A)
     };
 
     // fullscreen pass plumbing
@@ -733,8 +635,6 @@
     var centTex = dataTex(centData, NSS, 3);
     // society path history: column 0 = now, column k >= 1 = pushed (k - 1) * HIST_DT + histAge seconds ago
     var histData = new Float32Array(NS * NH * 4), histTex = dataTex(histData, NH, NS), histAge = 0, histFilled = false;
-    var linkData = new Float32Array(NLINK * 2 * 4);
-    var linkTex = dataTex(linkData, NLINK, 2);
 
     function rotAxis(v, a, ang) { // Rodrigues
       var c = Math.cos(ang), sn = Math.sin(ang), d = (a[0] * v[0] + a[1] * v[1] + a[2] * v[2]) * (1 - c), cr = cross(a, v);
@@ -800,25 +700,6 @@
       histTex.needsUpdate = true;
       extArr.sort();
       worldExt = extArr[Math.floor(0.95 * (NSS - 1))];
-      // filaments: each society -> 2 nearest societies, and -> global centroid
-      for (i = 0; i < NS; i++) {
-        var a = socs[i].pos, best = [-1, -1], bd = [1e9, 1e9];
-        for (j = 0; j < NS; j++) {
-          if (j === i) continue;
-          var q = socs[j].pos, d2 = (a[0] - q[0]) * (a[0] - q[0]) + (a[1] - q[1]) * (a[1] - q[1]) + (a[2] - q[2]) * (a[2] - q[2]);
-          if (d2 < bd[0]) { bd[1] = bd[0]; best[1] = best[0]; bd[0] = d2; best[0] = j; } else if (d2 < bd[1]) { bd[1] = d2; best[1] = j; }
-        }
-        for (k = 0; k < LINKS_PER; k++) {
-          var li = i * LINKS_PER + k, oa = li * 4, ob = (NLINK + li) * 4, target, wgt;
-          if (k < 2) {
-            target = socs[best[k]].pos;
-            wgt = smooth01((2.4 - Math.sqrt(bd[k])) / 1.6);
-          } else { target = [0, 0, 0]; wgt = 0.55; }
-          linkData[oa] = a[0]; linkData[oa + 1] = a[1]; linkData[oa + 2] = a[2]; linkData[oa + 3] = wgt;
-          linkData[ob] = target[0]; linkData[ob + 1] = target[1]; linkData[ob + 2] = target[2]; linkData[ob + 3] = k === 2 ? 1 : 0;
-        }
-      }
-      linkTex.needsUpdate = true;
     }
 
     // ------------------------------------------------------------ particle state
@@ -879,7 +760,8 @@
       pos: mat(POS_FRAG, { uPos: { value: null }, uVel: { value: null }, uDt: { value: 0 } }),
       mean: mat(MEAN_FRAG, {
         uPos: { value: null }, uAgents: { value: agentTex }, uPrev: { value: null }, uN: { value: 1000 },
-        uErr: { value: new THREE.Vector3() }, uBlend: { value: 1 }
+        uErr: { value: new THREE.Vector3() }, uBlend: { value: 1 }, uSideBlend: { value: 1 }, uHyst: { value: 0.02 },
+        uViewProj: { value: new THREE.Matrix4() }
       }),
       cells: mat(CELLS_FRAG, { uScene: { value: null }, uCellPx: { value: new THREE.Vector2() }, uScreen: { value: new THREE.Vector2() } }),
       down: mat(DOWN_FRAG, { uTex: { value: null }, uTexel: { value: new THREE.Vector2() } }),
@@ -887,111 +769,84 @@
     };
 
     // ------------------------------------------------------------ atlas + ascii
-    var atlas = buildAtlas();
-    var atlasTex = track(new THREE.CanvasTexture(atlas.canvas));
+    var atlasTex = track(new THREE.CanvasTexture(buildAtlas()));
     atlasTex.flipY = false;
     atlasTex.generateMipmaps = true;
     atlasTex.minFilter = THREE.LinearMipmapLinearFilter;
     atlasTex.magFilter = THREE.LinearFilter;
-    function gi(ch) { return atlas.list.indexOf(ch); }
     var asciiUniforms = {
-      uCells: { value: null }, uMarks: { value: null }, uAtlas: { value: atlasTex }, uBloom: { value: null }, uFlow: { value: null },
-      uCellPx: { value: new THREE.Vector2() }, uScreen: { value: new THREE.Vector2() }, uGrid: { value: new THREE.Vector2() },
-      uAtlasGrid: { value: new THREE.Vector2(atlas.cols, atlas.rows) },
-      uTruth: { value: new THREE.Vector2(-1e4, -1e4) }, uMean: { value: null }, uViewProj: { value: new THREE.Matrix4() },
-      uRampN: { value: atlas.rampN }, uTime: { value: 0 }, uGlitch: { value: reducedMotion ? 0 : 1 },
-      uBloomAmt: { value: 0.28 }, uExposure: { value: 1.5 }, uRingR: { value: 22 }, uPR: { value: 1 }, uAgentGlyph: { value: 1 },
-      uFadeR: { value: 1e5 },
-      uLabelT: { value: labelCodes(atlas, LABEL_T) }, uLabelC: { value: labelCodes(atlas, LABEL_C) },
-      uAmber: { value: COL.amber }, uHot: { value: COL.hot }, uLav: { value: COL.lav }, uCer: { value: COL.cer },
-      uBg: { value: COL.bg }, uHoney: { value: COL.honey }
+      uCells: { value: null }, uAtlas: { value: atlasTex }, uBloom: { value: null },
+      uCellPx: { value: new THREE.Vector2() }, uScreen: { value: new THREE.Vector2() },
+      uTruth: { value: new THREE.Vector2(-1e4, -1e4) },
+      uRampN: { value: RAMP.length }, uBloomAmt: { value: 0.13 }, uExposure: { value: 1.5 }, uFadeR: { value: 1e5 },
+      uDim: { value: COL.dim }, uHoney: { value: COL.honey }, uHot: { value: COL.hot }, uBg: { value: COL.bg }
     };
-    function makeAscii() {
-      return mat(asciiFrag({
-        agent: gi('\u25C6'), dot: gi('\u00B7'), h: gi('\u2500'), v: gi('\u2502'), cross: gi('\u253C'),
-        fwd: gi('\u2571'), back: gi('\u2572'), times: gi('\u00D7'), lenT: LABEL_T.length, lenC: LABEL_C.length
-      }), asciiUniforms);
-    }
-    M.ascii = makeAscii();
-    if (document.fonts && document.fonts.status !== 'loaded') {
-      document.fonts.ready.then(function () {
-        if (destroyed) return;
-        atlas = buildAtlas();
-        atlasTex.image = atlas.canvas; atlasTex.needsUpdate = true;
-        asciiUniforms.uAtlasGrid.value.set(atlas.cols, atlas.rows);
-        asciiUniforms.uRampN.value = atlas.rampN;
-        asciiUniforms.uLabelT.value = labelCodes(atlas, LABEL_T);
-        asciiUniforms.uLabelC.value = labelCodes(atlas, LABEL_C);
-        M.ascii.dispose();
-        M.ascii = makeAscii();
-        renderStill();
-      });
-    }
+    M.ascii = mat(ASCII_FRAG, asciiUniforms);
 
     // ------------------------------------------------------------ scene
     var camera = new THREE.PerspectiveCamera(FOV, 1, 0.1, 100);
     camera.position.set(0, 0.5, 10);
     var scene = new THREE.Scene();
-    var markScene = new THREE.Scene();
-    function idGeo(n) {
-      var g = track(new THREE.BufferGeometry());
-      g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n), 1));
-      return g;
-    }
-    var additive = { transparent: true, blending: THREE.AdditiveBlending, depthTest: false, depthWrite: false };
-    var partMat = track(new THREE.RawShaderMaterial(Object.assign({
+    var partGeo = track(new THREE.BufferGeometry());
+    partGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(COUNT), 1));
+    var partMat = track(new THREE.RawShaderMaterial({
       glslVersion: THREE.GLSL3, vertexShader: PARTICLE_VERT, fragmentShader: POINT_FRAG,
       uniforms: {
         uPos: { value: null }, uVel: { value: null }, uInfo: { value: infoTex }, uSize: { value: SIZE },
-        uPointScale: { value: 1 }, uIntensity: { value: coarse ? 0.75 : 0.18 }, uTime: { value: 0 },
-        uHoney: { value: COL.honey }, uHoneyDeep: { value: COL.honeyDeep }, uHot: { value: COL.hot }, uLav: { value: COL.lav }
-      }
-    }, additive)));
-    var particles = new THREE.Points(idGeo(COUNT), partMat);
+        uPointScale: { value: 1 }, uIntensity: { value: coarse ? 0.75 : 0.18 }, uColor: { value: COL.honey }
+      },
+      transparent: true, blending: THREE.AdditiveBlending, depthTest: false, depthWrite: false
+    }));
+    var particles = new THREE.Points(partGeo, partMat);
     particles.frustumCulled = false;
     scene.add(particles);
 
-    var linkMat = track(new THREE.RawShaderMaterial(Object.assign({
-      glslVersion: THREE.GLSL3, vertexShader: LINK_VERT, fragmentShader: POINT_FRAG,
-      uniforms: {
-        uLinks: { value: linkTex }, uPer: { value: LINK_PTS }, uPointScale: { value: 1 }, uIntensity: { value: 8.0 },
-        uTime: { value: 0 }, uColor: { value: COL.honeyDeep }, uLav: { value: COL.lav }
-      }
-    }, additive)));
-    var links = new THREE.Points(idGeo(NLINK * LINK_PTS), linkMat);
-    links.frustumCulled = false;
-    scene.add(links);
-
-    var agentUniforms = {
-      uPos: { value: null }, uAgents: { value: agentTex }, uPointScale: { value: 1 }, uIntensity: { value: 0.5 },
-      uMarkScaleX: { value: 1 }, uMarkScaleY: { value: 1 }, uTime: { value: 0 }, uColor: { value: COL.honey }, uMarks: { value: 0 }
+    // ------------------------------------------------------------ vector overlay (device resolution)
+    var labels = cleanLabels(opts.labels, DEFAULT_LABELS);
+    var labelCanvas = document.createElement('canvas');
+    var labelTex = track(new THREE.CanvasTexture(labelCanvas));
+    labelTex.flipY = false;
+    labelTex.premultiplyAlpha = true;
+    labelTex.generateMipmaps = false;
+    labelTex.minFilter = labelTex.magFilter = THREE.LinearFilter;
+    var ovGeo = track(new THREE.InstancedBufferGeometry());
+    ovGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array([-1, -1, 1, -1, 1, 1, -1, -1, 1, 1, -1, 1]), 2));
+    var ids = new Float32Array(MAX_AGENTS + 5);
+    for (i = 0; i < ids.length; i++) ids[i] = i;
+    ovGeo.setAttribute('aId', new THREE.InstancedBufferAttribute(ids, 1));
+    var ovUniforms = {
+      uPos: { value: null }, uAgents: { value: agentTex }, uMean: { value: null }, uLabels: { value: labelTex },
+      uViewProj: { value: new THREE.Matrix4() }, uScreen: { value: new THREE.Vector2(1, 1) },
+      uLabSizeT: { value: new THREE.Vector2() }, uLabSizeC: { value: new THREE.Vector2() },
+      uLabUvT: { value: new THREE.Vector4() }, uLabUvC: { value: new THREE.Vector4() },
+      uPR: { value: 1 }, uN: { value: 0 }, uDotR: { value: 2.5 }, uDotA: { value: 1 }, uFadeR: { value: 1e5 },
+      uArm: { value: 9 }, uRingR: { value: 11 }, uStroke: { value: 1.5 },
+      uInk: { value: COL.ink }, uHoney: { value: COL.honey }, uBg: { value: COL.bg }
     };
-    var agentMat = track(new THREE.RawShaderMaterial(Object.assign({
-      glslVersion: THREE.GLSL3, vertexShader: AGENT_VERT, fragmentShader: POINT_FRAG, uniforms: agentUniforms
-    }, additive)));
-    var agentGeo = idGeo(MAX_AGENTS);
-    var agentPts = new THREE.Points(agentGeo, agentMat);
-    agentPts.frustumCulled = false;
-    scene.add(agentPts);
-    var markUniforms = Object.assign({}, agentUniforms, { uMarks: { value: 1 } });
-    var markMat = track(new THREE.RawShaderMaterial(Object.assign({
-      glslVersion: THREE.GLSL3, vertexShader: AGENT_VERT, fragmentShader: FLAT_FRAG,
-      uniforms: markUniforms
-    }, additive)));
-    var markPts = new THREE.Points(agentGeo, markMat);
-    markPts.frustumCulled = false;
-    markScene.add(markPts);
+    var ovMesh = new THREE.Mesh(ovGeo, track(new THREE.RawShaderMaterial({
+      glslVersion: THREE.GLSL3, vertexShader: OVERLAY_VERT, fragmentShader: OVERLAY_FRAG, uniforms: ovUniforms,
+      transparent: true, blending: THREE.CustomBlending, blendEquation: THREE.AddEquation,
+      blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor, depthTest: false, depthWrite: false
+    })));
+    ovMesh.frustumCulled = false;
+    var ovScene = new THREE.Scene(); ovScene.add(ovMesh);
 
-    var flowScene = new THREE.Scene();
-    var flowUniforms = {
-      uPos: { value: null }, uVel: { value: null }, uInfo: { value: infoTex }, uSize: { value: SIZE },
-      uScale: { value: new THREE.Vector2(1, 1) }, uScreen: { value: new THREE.Vector2(1, 1) }
-    };
-    var flowPts = new THREE.Points(particles.geometry, track(new THREE.RawShaderMaterial(Object.assign({
-      glslVersion: THREE.GLSL3, vertexShader: FLOW_VERT, fragmentShader: FLAT_FRAG, uniforms: flowUniforms
-    }, additive))));
-    flowPts.frustumCulled = false;
-    flowScene.add(flowPts);
+    function rasterLabels() {
+      var r = drawLabels(labelCanvas, labels, pr);
+      ovUniforms.uLabUvT.value.fromArray(r[0].uv); ovUniforms.uLabSizeT.value.fromArray(r[0].size);
+      ovUniforms.uLabUvC.value.fromArray(r[1].uv); ovUniforms.uLabSizeC.value.fromArray(r[1].size);
+      labelTex.dispose();                 // the canvas may have changed size: reallocate the texture
+      labelTex.needsUpdate = true;
+    }
+
+    if (document.fonts && document.fonts.status !== 'loaded') {
+      document.fonts.ready.then(function () {
+        if (destroyed) return;
+        atlasTex.image = buildAtlas(); atlasTex.needsUpdate = true;
+        rasterLabels();
+        renderStill();
+      });
+    }
 
     // ------------------------------------------------------------ crowd estimate (stays on the GPU)
     var meanRT = doubleRT(1, 1, FF, THREE.NearestFilter);
@@ -1007,12 +862,14 @@
       U.uN.value = Math.round(agentsT);
       U.uErr.value.copy(errVec);
       U.uBlend.value = instant ? 1 : 1 - Math.exp(-dt * 4);
+      U.uSideBlend.value = instant ? 1 : 1 - Math.exp(-dt * 5);
+      U.uViewProj.value.copy(viewProj);
       pass(M.mean, meanRT.write); meanRT.swap();
     }
 
     // ------------------------------------------------------------ sizing
     var cssW = 0, cssH = 0, pr = 1, bufW = 0, bufH = 0, cols = 0, rows = 0, cellW = 6, cellH = 9;
-    var sceneRT = null, cellsRT = null, marksRT = null, flowRT = null, bloomA = null, bloomB = null;
+    var sceneRT = null, cellsRT = null, bloomA = null, bloomB = null;
     function resize() {
       var w = Math.round(canvas.clientWidth), h = Math.round(canvas.clientHeight);
       var p = Math.min(window.devicePixelRatio || 1, 2);
@@ -1024,37 +881,32 @@
       bufW = Math.round(cssW * pr); bufH = Math.round(cssH * pr);
       cellW = Math.max(4, Math.round(CELL_W * pr)); cellH = Math.max(6, Math.round(CELL_H * pr));
       cols = Math.ceil(bufW / cellW); rows = Math.ceil(bufH / cellH);
-      [sceneRT, cellsRT, marksRT, flowRT, bloomA, bloomB].forEach(function (r) {
+      [sceneRT, cellsRT, bloomA, bloomB].forEach(function (r) {
         if (r) { r.dispose(); disposables.splice(disposables.indexOf(r), 1); }
       });
       var sw = Math.min(cssW, 2048), sh = Math.max(2, Math.round(sw * cssH / cssW));
       sceneRT = rt(sw, sh, HF, THREE.LinearFilter);
       cellsRT = rt(cols, rows, HF, THREE.NearestFilter);
-      marksRT = rt(cols, rows, THREE.UnsignedByteType, THREE.NearestFilter);
-      flowRT = rt(cols, rows, HF, THREE.NearestFilter);
       var bw = Math.max(2, Math.round(sw / 4)), bh = Math.max(2, Math.round(sh / 4));
       bloomA = rt(bw, bh, HF, THREE.LinearFilter);
       bloomB = rt(bw, bh, HF, THREE.LinearFilter);
 
       var aspect = cssW / cssH;
       camera.aspect = aspect;
-      var tanH = TAN_H;
       applyFocus();
-      var projScale = sh * 0.5 / tanH;
+      var projScale = sh * 0.5 / TAN_H;
       partMat.uniforms.uPointScale.value = (coarse ? 0.024 : 0.0125) * projScale;
-      linkMat.uniforms.uPointScale.value = 0.016 * projScale;
-      agentUniforms.uPointScale.value = 0.035 * projScale;
-      agentUniforms.uMarkScaleX.value = bufW / (cols * cellW);
-      agentUniforms.uMarkScaleY.value = bufH / (rows * cellH);
-      flowUniforms.uScale.value.set(agentUniforms.uMarkScaleX.value, agentUniforms.uMarkScaleY.value);
-      flowUniforms.uScreen.value.set(bufW, bufH);
       M.cells.uniforms.uCellPx.value.set(cellW, cellH);
       M.cells.uniforms.uScreen.value.set(bufW, bufH);
+      M.mean.uniforms.uHyst.value = 24 / cssW;          // 12 CSS px, in NDC
       asciiUniforms.uCellPx.value.set(cellW, cellH);
       asciiUniforms.uScreen.value.set(bufW, bufH);
-      asciiUniforms.uGrid.value.set(cols, rows);
-      asciiUniforms.uRingR.value = 22 * pr;
-      asciiUniforms.uPR.value = pr;
+      ovUniforms.uScreen.value.set(bufW, bufH);
+      ovUniforms.uPR.value = pr;
+      ovUniforms.uArm.value = 9 * pr;
+      ovUniforms.uRingR.value = 11 * pr;
+      ovUniforms.uStroke.value = 1.5 * pr;
+      rasterLabels();
       M.splat.uniforms.uAspect.value = aspect;
       return true;
     }
@@ -1121,7 +973,7 @@
       var target = radiusS * (1 - 0.5 * lockNow);
       var dist = Math.max(extS * EXTENT_GAIN / (2 * target * TAN_H), extS + 2.5), k = dist / 8;
       screenWorldH = 2 * dist * TAN_H;
-      asciiUniforms.uFadeR.value = radiusS * cssH * pr;
+      asciiUniforms.uFadeR.value = ovUniforms.uFadeR.value = radiusS * cssH * pr;
       camera.position.set(gaze.x * 1.5 * k, (0.45 + gaze.y * 0.9) * k, dist);
       camera.lookAt(0, 0, 0);
       camera.updateMatrixWorld();
@@ -1196,8 +1048,8 @@
       U.uFieldR.value = FIELD_R * (1 - 0.6 * lock);
       U.uPivot.value.fromArray(pivot);
       U.uHistA1.value = histAge;
-      // monoculture packs every particle into one clump: lower exposure to keep glyph gradation
-      asciiUniforms.uExposure.value = 2.2 * (1 - 0.75 * lock);
+      // monoculture packs every particle into one clump: lower exposure so it still steps through the ramp
+      asciiUniforms.uExposure.value = 2.2 * (1 - 0.55 * lock);
       U.uTurb.value = 0.9 + (0.3 - 0.9) * lock;
       U.uFluidForce.value = withFluid ? (screenWorldH / SIM_RES) * 2.2 : 0;
       U.uViewProj.value.copy(viewProj);
@@ -1210,29 +1062,14 @@
       pass(M.pos, posRT.write); posRT.swap();
     }
 
-    function render(t) {
+    function render() {
       partMat.uniforms.uPos.value = posRT.read.texture;
       partMat.uniforms.uVel.value = velRT.read.texture;
-      partMat.uniforms.uTime.value = t;
-      linkMat.uniforms.uTime.value = t;
-      agentUniforms.uPos.value = posRT.read.texture;
-      agentUniforms.uTime.value = t;
-      markUniforms.uPos.value = posRT.read.texture;
-      flowUniforms.uPos.value = posRT.read.texture;
-      flowUniforms.uVel.value = velRT.read.texture;
-      agentGeo.setDrawRange(0, Math.round(agentsT));
-      asciiUniforms.uAgentGlyph.value = agentsT <= 100 ? 1 : 0;
       tmpV.set(0, 0, 0).project(camera);
       asciiUniforms.uTruth.value.set((tmpV.x * 0.5 + 0.5) * bufW, (tmpV.y * 0.5 + 0.5) * bufH);
-      asciiUniforms.uViewProj.value.copy(viewProj);
-      asciiUniforms.uMean.value = meanRT.read.texture;
 
       renderer.setRenderTarget(sceneRT); renderer.clear(true, false, false);
       renderer.render(scene, camera);
-      renderer.setRenderTarget(marksRT); renderer.clear(true, false, false);
-      renderer.render(markScene, camera);
-      renderer.setRenderTarget(flowRT); renderer.clear(true, false, false);
-      renderer.render(flowScene, camera);
 
       M.cells.uniforms.uScene.value = sceneRT.texture;
       pass(M.cells, cellsRT);
@@ -1248,11 +1085,20 @@
         pass(M.blur, bloomA);
       }
       asciiUniforms.uCells.value = cellsRT.texture;
-      asciiUniforms.uMarks.value = marksRT.texture;
-      asciiUniforms.uFlow.value = flowRT.texture;
       asciiUniforms.uBloom.value = bloomA.texture;
-      asciiUniforms.uTime.value = t;
       pass(M.ascii, null);
+
+      // overlay on top of the ASCII image: agents as dots (smaller and fainter for a large crowd)
+      var n = Math.round(agentsT);
+      ovUniforms.uPos.value = posRT.read.texture;
+      ovUniforms.uMean.value = meanRT.read.texture;
+      ovUniforms.uViewProj.value.copy(viewProj);
+      ovUniforms.uN.value = n;
+      ovUniforms.uDotR.value = (n <= 10 ? 3.5 : n <= 100 ? 2.5 : 1.4) * pr;
+      ovUniforms.uDotA.value = n <= 100 ? 1 : 0.6;
+      ovGeo.instanceCount = n + 5;
+      renderer.setRenderTarget(null);
+      renderer.render(ovScene, fsCam);
     }
 
     // ------------------------------------------------------------ loop / lifecycle
@@ -1272,7 +1118,7 @@
       updateCamera(dt, false);
       stepSim(dt, true);
       updateCrowd(dt, false);
-      render(simTime);
+      render();
     }
     function sync() {
       if (shouldRun()) {
@@ -1285,7 +1131,7 @@
       if (destroyed || shouldRun() || !sceneRT) return;
       updateCamera(0, true);
       updateCrowd(0, true);
-      render(simTime);
+      render();
     }
     function settle(seconds) {
       var steps = Math.round(seconds * 60);
@@ -1340,6 +1186,17 @@
         if (radius !== undefined) radiusT = clampRadius(radius);
         if (!shouldRun() && !destroyed) renderStill();
       },
+      setLabels: function (l) {
+        if (destroyed) return;
+        labels = cleanLabels(l, labels);
+        rasterLabels();
+        renderStill();
+      },
+      refreshLabels: function () {
+        if (destroyed) return;
+        rasterLabels();
+        renderStill();
+      },
       pause: function () { userPaused = true; sync(); },
       resume: function () {
         if (destroyed) return;
@@ -1361,7 +1218,6 @@
         window.removeEventListener('touchmove', onTouch);
         window.removeEventListener('touchend', onTouchEnd);
         disposables.forEach(function (d) { d.dispose(); });
-        M.ascii.dispose();
         renderer.setRenderTarget(null);
         renderer.dispose();
       }
